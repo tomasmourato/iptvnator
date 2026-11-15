@@ -59,6 +59,25 @@ public class ShellSiteTest {
         assertTrue("scaled viewport served", html.contains("<meta name=\"viewport\" content=\"width=1280, initial-scale=0.75, minimum-scale=0.75, maximum-scale=0.75\">"));
     }
 
+    public void testTouchModeKeepsTheDeviceWidthAndTellsTheTvLayer() throws IOException {
+        ShellSite s = site();
+        s.setScreenWidth(411);
+        s.setTouchMode(true);
+        String html = new String(s.serve("/").body, UTF8);
+        assertTrue("device-width viewport", html.contains("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"));
+        assertTrue("no pinned scale", !html.contains("maximum-scale") && !html.contains("minimum-scale"));
+        assertTrue("tv.js told about touch", html.contains("<script src=\"tvshell/tv.js\" data-tvshell-mode=\"touch\" defer></script>"));
+        int tv = html.indexOf("tvshell/tv.js");
+        assertTrue("tv.js still before config", tv > 0 && tv < html.indexOf("assets/app-config.js"));
+        assertEquals("spa fallback in touch mode", html, new String(s.serve("/workspace/sources").body, UTF8));
+        s.setTouchMode(false);
+        String tvHtml = new String(s.serve("/").body, UTF8);
+        assertTrue("back to the TV viewport", tvHtml.contains("content=\"width=1280, initial-scale=0.3211, minimum-scale=0.3211, maximum-scale=0.3211\""));
+        assertTrue("plain TV tag", tvHtml.contains("<script src=\"tvshell/tv.js\" defer></script>") && !tvHtml.contains("data-tvshell-mode"));
+        assertEquals("TV output unchanged by the new overload",
+            ShellSite.injectTvLayer(INDEX, 1280, 960), ShellSite.injectTvLayer(INDEX, 1280, 960, false));
+    }
+
     public void testThirdPartyNoticesAreServed() throws IOException {
         ShellSite.Resource notices = site().serve("/tvshell/THIRD-PARTY-NOTICES.txt");
         assertEquals("status", 200, Integer.valueOf(notices.status));

@@ -21,9 +21,41 @@
 
         <TextView
             style="@style/SettingsSection"
+            android:text="@string/setting_interface" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/setting_interface_hint" />
+
+        <RadioGroup
+            android:id="@+id/interface_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/interface_auto"
+                style="@style/SettingsRadio"
+                android:text="@string/interface_auto" />
+
+            <RadioButton
+                android:id="@+id/interface_tv"
+                style="@style/SettingsRadio"
+                android:text="@string/interface_tv" />
+
+            <RadioButton
+                android:id="@+id/interface_touch"
+                style="@style/SettingsRadio"
+                android:text="@string/interface_touch" />
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/width_section"
+            style="@style/SettingsSection"
             android:text="@string/setting_width" />
 
         <TextView
+            android:id="@+id/width_hint"
             style="@style/SettingsHint"
             android:text="@string/setting_width_hint" />
 

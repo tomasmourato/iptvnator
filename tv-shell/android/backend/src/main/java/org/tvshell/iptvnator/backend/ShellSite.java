@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
  *   <li>the Angular service worker is not served (the bundle ships inside the
  *       APK; caching would only make updates stale).</li>
  * </ul>
+ * In touch mode (phones, tablets) the page keeps {@code width=device-width} so the app's own
+ * phone layout applies and pinch-zoom works, and tv.js is told to leave out its focus layer.
  * Pure Java: the Android server and the local test server both wrap it.
  */
 public class ShellSite {
@@ -78,6 +80,7 @@ public class ShellSite {
     private volatile int layoutWidth;
     /** Screen width in CSS px at scale 1 (Android dp); 0 when unknown, then the WebView picks the scale. */
     private volatile int screenWidth;
+    private volatile boolean touchMode;
 
     public ShellSite(AssetSource assets, String backendUrl, int layoutWidth) {
         this.assets = assets;
@@ -91,6 +94,10 @@ public class ShellSite {
 
     public void setScreenWidth(int screenWidth) {
         this.screenWidth = screenWidth;
+    }
+
+    public void setTouchMode(boolean touchMode) {
+        this.touchMode = touchMode;
     }
 
     public static String mimeFor(String path) {
@@ -135,7 +142,7 @@ public class ShellSite {
             // SPA fallback: every unknown route is the app itself.
             byte[] index = assets.read("www/index.html");
             if (index == null) return text(503, "IPTVnator web app is missing from the APK (www/index.html)");
-            return new Resource(200, MIME.get("html"), injectTvLayer(new String(index, UTF8), layoutWidth, screenWidth).getBytes(UTF8), "no-store");
+            return new Resource(200, MIME.get("html"), injectTvLayer(new String(index, UTF8), layoutWidth, screenWidth, touchMode).getBytes(UTF8), "no-store");
         }
         String cache = HASHED_FILE.matcher(path).matches() ? "public, max-age=31536000, immutable" : "no-store";
         return new Resource(200, mimeFor(relative), data, cache);
@@ -163,15 +170,26 @@ public class ShellSite {
     }
 
     public static String injectTvLayer(String html, int layoutWidth, int screenWidth) {
+        return injectTvLayer(html, layoutWidth, screenWidth, false);
+    }
+
+    /** Touch viewport: the device width at scale 1, zoomable (no pinned or maximum scale). */
+    public static final String TOUCH_VIEWPORT = "width=device-width, initial-scale=1";
+
+    public static String injectTvLayer(String html, int layoutWidth, int screenWidth, boolean touchMode) {
         html = html.replaceFirst("<base href=\"[^\"]*\"\\s*/?>", "<base href=\"/\">");
+        String viewport = touchMode ? TOUCH_VIEWPORT : viewport(layoutWidth, screenWidth);
         html = html.replaceFirst("<meta name=\"viewport\"[^>]*>",
-            "<meta name=\"viewport\" content=\"" + viewport(layoutWidth, screenWidth) + "\">");
+            "<meta name=\"viewport\" content=\"" + viewport + "\">");
+        String tag = touchMode
+            ? "<script src=\"tvshell/tv.js\" data-tvshell-mode=\"touch\" defer></script>"
+            : "<script src=\"tvshell/tv.js\" defer></script>";
         String marker = "<script src=\"assets/app-config.js\"";
         int at = html.indexOf(marker);
         if (at >= 0) {
-            html = html.substring(0, at) + "<script src=\"tvshell/tv.js\" defer></script>\n        " + html.substring(at);
+            html = html.substring(0, at) + tag + "\n        " + html.substring(at);
         } else {
-            html = html.replaceFirst("</head>", "<script src=\"tvshell/tv.js\" defer></script></head>");
+            html = html.replaceFirst("</head>", tag + "</head>");
         }
         return html;
     }

@@ -168,3 +168,43 @@ package-private helpers:
 | TV screens | facts identical, 0.000% pixel difference on all 8 shots |
 | Phone emulator suites | 1 / 3 / 1 / 4 PASS, the same as the baseline |
 | Monorepo gates | test:frontend, typecheck:web, build:frontend:pwa pass; lint fails only on the pre-existing upstream `ui-playback` max-lines (#2211) |
+
+### Commit 2: touch interface mode with a device-width viewport
+- **Mode detection:** a pure-Java rule, `InterfaceMode` (JVM-tested). TV
+  means the TV UI mode, or Leanback, or no touchscreen. Otherwise touch. The
+  shell settings get an Interface choice: Automatic, TV or Touch. The
+  layout-width choice hides in touch mode.
+- **Touch serving:** `ShellSite` serves `width=device-width, initial-scale=1`
+  and `<script src="tvshell/tv.js" data-tvshell-mode="touch" defer>`. The
+  WebView allows pinch-zoom. The devserver mirrors this with `--touch` (or
+  `TVSHELL_TOUCH=1`).
+- **Rotation:** no reload in touch mode.
+- **New emulator test:** `tests/android-touch.mjs` checks:
+  - a device-width page at scale 1;
+  - no horizontal scroll at phone width;
+  - CDP pinch-zoom in and out;
+  - a rotation that keeps the page (a JS marker survives) and the playing
+    clip.
+
+  It fails on the commit 1 APK (pinned `width=1280` viewport) and passes on
+  this one.
+
+| Check | Result |
+|---|---|
+| `:backend:check` | 65 passed (+4: touch serving, mode truth table) |
+| `node --test` | 15 passed (+2: devserver TV and touch transformations) |
+| `android-touch.mjs` phone / tablet | PASS: 411 CSS px page, rotation 411 → 914 with playback kept / PASS: 1280 CSS px, rotation 1280 → 800 |
+| Phone emulator suites | 1 / 3 / 1 / 4 PASS, the same as the baseline |
+| Tablet emulator suites | 1 / 2 / 1 / 4 PASS. File-input fails at "Cancel did not return to the app" with the **baseline APK too** (the tablet DocumentsUI layout); both file selections pass |
+| TV emulator suites, served `index.html` | identical to the baseline |
+| TV screens | facts identical. One run showed 0.059% difference on the settings shot (the rail's playlist-group outline caught mid-transition). The same APK's rerun is pixel-identical to the baseline, and to a rerun of the baseline APK, so it's run noise, not a change |
+| Monorepo gates | as commit 1 (lint: only the upstream `ui-playback` failure) |
+
+Phone after commit 2: portrait uses the app's phone layout at normal size,
+with no `Ctrl+K` badge and no keyboard-shortcuts button. In landscape
+(914 CSS px, above the app's 640 px breakpoint) the desktop header with
+those hints returns. That's the app's own breakpoint, tracked under
+finding 8.
+
+Still open (commits 3–5): the bars stay hidden, the TV focus ring and the
+row-30 scroll remain, and there's no touch entry to the shell settings.

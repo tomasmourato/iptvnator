@@ -24,6 +24,11 @@
     <string name="external_prompt_message">%1$s\n\nThe built-in browser player does not support this stream format. Open it in an installed video player (VLC, …)?</string>
     <string name="external_prompt_open">Open in a player</string>
     <string name="external_prompt_cancel">Cancel</string>
+    <string name="setting_interface">Interface</string>
+    <string name="setting_interface_hint">TV for a remote control, touch for a phone or tablet. Automatic picks from the device.</string>
+    <string name="interface_auto">Automatic</string>
+    <string name="interface_tv">TV</string>
+    <string name="interface_touch">Touch</string>
     <string name="setting_width">Interface size</string>
     <string name="setting_width_hint">Width of the web layout. Larger text means less content per screen.</string>
     <string name="width_960">Large (960)</string>

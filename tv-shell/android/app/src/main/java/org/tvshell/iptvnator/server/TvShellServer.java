@@ -105,6 +105,11 @@ public final class TvShellServer extends NanoHTTPD {
         site.setScreenWidth(cssWidth);
     }
 
+    /** Touch interface: device-width page and no remote-control focus layer. */
+    public void setTouchMode(boolean touchMode) {
+        site.setTouchMode(touchMode);
+    }
+
     private byte[] readAsset(String relativePath) throws IOException {
         InputStream in;
         try {
