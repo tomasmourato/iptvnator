@@ -2,8 +2,6 @@ package org.tvshell.iptvnator.ui;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -13,7 +11,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -58,7 +55,6 @@ import java.util.List;
 public class MainActivity extends Activity {
 
     private static final int NATIVE_PLAYBACK_REQUEST = 7103;
-    private static final long LONG_PRESS_MS = 650;
     /**
      * How long the web app may take to report readiness before the error panel explains the
      * situation; doubled once while the page is still being fetched (a cold start on a slow stick
@@ -86,19 +82,15 @@ public class MainActivity extends Activity {
     private boolean nativePlaybackDocumentCurrent;
     private Runnable pendingNativePlaybackResult;
     private final WebFileChooser fileChooser = new WebFileChooser(this);
+    private final KeyRouter keys = new KeyRouter(this);
+    private final FullscreenController fullscreen = new FullscreenController(this);
+    private ExternalOffer externalOffer;
     private FrameLayout root;
     private View splash;
     private View errorPanel;
     private TextView errorText;
-    private View customView;
-    private WebChromeClient.CustomViewCallback customViewCallback;
     private Prefs prefs;
     private TvShellServer server;
-    private long menuDownAt;
-    private boolean menuLongPressFired;
-    private String lastOfferedUrl;
-    private long lastOfferedAt;
-    private AlertDialog externalDialog;
     private boolean resumed;
     private boolean pageReady;
     private boolean pageFinished;
@@ -110,8 +102,6 @@ public class MainActivity extends Activity {
     private String restoreUrl;
     /** The route at the last pause, for the relaunch after the system reclaimed the hidden renderer. */
     private String lastRoute;
-    private long backDownAt;
-    private boolean backLongPressFired;
     private String lastConsoleError;
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Fires when the page never reported itself ready: a too-old WebView fails to parse the bundle silently. */
@@ -142,6 +132,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
+        externalOffer = new ExternalOffer(this, prefs);
         nativePlaybackCheckpoints = new NativePlaybackCheckpoints(this);
         if (savedInstanceState != null) {
             restoreUrl = savedInstanceState.getString(STATE_URL);
@@ -329,21 +320,12 @@ public class MainActivity extends Activity {
 
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
-                if (customView != null) {
-                    callback.onCustomViewHidden();
-                    return;
-                }
-                customView = view;
-                customViewCallback = callback;
-                root.addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                webView.setVisibility(View.GONE);
-                view.setFocusable(true);
-                view.requestFocus();
+                fullscreen.show(view, callback);
             }
 
             @Override
             public void onHideCustomView() {
-                hideCustomView();
+                fullscreen.hide();
             }
         });
 
@@ -385,7 +367,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(loadRetry);
         setKeepScreenOn(true); // through the splash; the page then reports its playback state
         loadedLayoutWidth = prefs.layoutWidth();
-        loadedScreenWidth = screenCssWidth(this);
+        loadedScreenWidth = ShellDiagnostics.screenCssWidth(this);
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
             showError(getString(R.string.server_error));
@@ -452,177 +434,43 @@ public class MainActivity extends Activity {
         errorPanel.findViewById(R.id.error_retry).requestFocus();
     }
 
-    /** Screen width in CSS px at scale 1 (Android dp): 960 on a 1080p Fire TV. */
-    static int screenCssWidth(android.content.Context context) {
-        DisplayMetrics dm = context.getResources().getDisplayMetrics();
-        return dm.density > 0 ? Math.round(dm.widthPixels / dm.density) : 0;
-    }
-
-    /** "1920×1080 px, density 2.0 → 960 px CSS" for the diagnostics. */
-    static String screenInfo(android.content.Context context) {
-        DisplayMetrics dm = context.getResources().getDisplayMetrics();
-        return dm.widthPixels + "\u00d7" + dm.heightPixels + " px, density " + dm.density + " \u2192 " + screenCssWidth(context) + " px CSS";
-    }
-
     String diagnostics() {
-        String chrome = "?";
-        String webViewPackage = "";
-        try {
-            String ua = WebSettings.getDefaultUserAgent(this);
-            int at = ua.indexOf("Chrome/");
-            if (at >= 0) {
-                int end = ua.indexOf(' ', at);
-                chrome = ua.substring(at + 7, end > 0 ? end : ua.length());
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                android.content.pm.PackageInfo info = WebView.getCurrentWebViewPackage();
-                if (info != null) webViewPackage = info.packageName + " " + info.versionName;
-            }
-        } catch (RuntimeException e) {
-            // The system WebView is missing, disabled or being updated: the rest still helps.
-            webViewPackage = "unavailable (" + e.getClass().getSimpleName() + ")";
-        }
-        String port = server == null ? "-" : String.valueOf(server.port());
-        if (server != null && ShellApp.onFallbackPort()) port += " (temporary, saved data on " + prefs.serverPort() + ")";
-        return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            port, screenInfo(this) + ", layout " + loadedLayoutWidth);
+        return ShellDiagnostics.describe(this, prefs, server, loadedLayoutWidth);
     }
 
     // ------------------------------------------------------------- keys
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        int code = event.getKeyCode();
-        int action = event.getAction();
-        if (customView == null && errorPanel.getVisibility() == View.VISIBLE) {
-            // The WebView underneath stays focusable: keys must land on the panel's buttons.
-            View focus = getCurrentFocus();
-            if (focus == null || focus == webView) errorPanel.findViewById(R.id.error_retry).requestFocus();
-            return super.dispatchKeyEvent(event);
-        }
-        switch (code) {
-            case KeyEvent.KEYCODE_BACK:
-                // A held Back opens the shell settings: remotes without a Menu key (Google TV, HDMI-CEC).
-                if (action == KeyEvent.ACTION_DOWN) {
-                    if (event.getRepeatCount() == 0) {
-                        backDownAt = SystemClock.uptimeMillis();
-                        backLongPressFired = false;
-                    } else if (!backLongPressFired && SystemClock.uptimeMillis() - backDownAt >= LONG_PRESS_MS) {
-                        backLongPressFired = true;
-                        openSettings();
-                    }
-                } else if (action == KeyEvent.ACTION_UP) {
-                    if (!backLongPressFired && !event.isCanceled()) handleBack();
-                    backLongPressFired = false;
-                }
-                return true;
-            case KeyEvent.KEYCODE_MENU:
-            case KeyEvent.KEYCODE_TV_MEDIA_CONTEXT_MENU: // HDMI-CEC remotes
-            case KeyEvent.KEYCODE_BUTTON_Y: // game controllers
-                if (action == KeyEvent.ACTION_DOWN) {
-                    if (event.getRepeatCount() == 0) {
-                        menuDownAt = SystemClock.uptimeMillis();
-                        menuLongPressFired = false;
-                    } else if (!menuLongPressFired && SystemClock.uptimeMillis() - menuDownAt >= LONG_PRESS_MS) {
-                        menuLongPressFired = true;
-                        openSettings();
-                    }
-                } else if (action == KeyEvent.ACTION_UP) {
-                    if (!menuLongPressFired) js("window.__tvShell && window.__tvShell.menu()");
-                    menuLongPressFired = false;
-                }
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-            case KeyEvent.KEYCODE_HEADSETHOOK:
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) media("playpause");
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_PLAY:
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) media("play");
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) media("pause");
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_STOP:
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) media("stop");
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_REWIND:
-                if (action == KeyEvent.ACTION_DOWN) media("rewind");
-                return true;
-            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                if (action == KeyEvent.ACTION_DOWN) media("fastforward");
-                return true;
-            case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_ENTER:
-            case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                // A held OK is one activation. The WebView turns every Android key repeat into a fresh
-                // Enter keydown + keypress with KeyboardEvent.repeat === false, so the page cannot filter
-                // repeats itself; drop them here like the media keys above. D-pad repeats stay (hold to scroll).
-                if (action == KeyEvent.ACTION_DOWN && event.getRepeatCount() > 0) return true;
-                if (customView != null) return forwardToPage(event, "Enter");
-                return super.dispatchKeyEvent(event);
-            case KeyEvent.KEYCODE_DPAD_UP:
-                if (customView != null) return forwardToPage(event, "ArrowUp");
-                return super.dispatchKeyEvent(event);
-            case KeyEvent.KEYCODE_DPAD_DOWN:
-                if (customView != null) return forwardToPage(event, "ArrowDown");
-                return super.dispatchKeyEvent(event);
-            case KeyEvent.KEYCODE_DPAD_LEFT:
-                if (customView != null) return forwardToPage(event, "ArrowLeft");
-                return super.dispatchKeyEvent(event);
-            case KeyEvent.KEYCODE_DPAD_RIGHT:
-                if (customView != null) return forwardToPage(event, "ArrowRight");
-                return super.dispatchKeyEvent(event);
-            default:
-                return super.dispatchKeyEvent(event);
-        }
+        return keys.dispatch(event);
     }
 
-    private void handleBack() {
-        if (customView != null) {
-            // Leaving fullscreen video is handled by the page (document.exitFullscreen).
-            js("window.__tvShell ? window.__tvShell.back() : (document.fullscreenElement && document.exitFullscreen(), true)");
-            return;
-        }
-        if (!pageReady || webView == null || webView.getVisibility() != View.VISIBLE) {
-            finishAffinity();
-            return;
-        }
-        js("window.__tvShell ? window.__tvShell.back() : (history.length > 1 ? (history.back(), true) : false)");
+    /** The Activity's own key dispatch, for the keys {@link KeyRouter} leaves to the system. */
+    boolean superDispatchKeyEvent(KeyEvent event) {
+        return super.dispatchKeyEvent(event);
     }
 
-    /**
-     * In fullscreen the WebView is hidden and Chromium's fullscreen view holds focus, so D-pad and
-     * OK may not reach the page. Let the page route those keys to its controls and keep native
-     * delivery for keys it declines, such as input inside a trailer frame or text caret movement.
-     * The key names are constants from the switch above. Ctrl, Alt and Meta combinations stay on
-     * the native path: the replay carries no modifier flags, so the page guards that skip modified
-     * arrows would see a plain arrow and seek or move focus instead of moving the caret.
-     */
-    private boolean forwardToPage(KeyEvent event, String key) {
-        if (event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) {
-            return super.dispatchKeyEvent(event);
-        }
-        int action = event.getAction();
-        if (webView == null || (action != KeyEvent.ACTION_DOWN && action != KeyEvent.ACTION_UP)) {
-            return super.dispatchKeyEvent(event);
-        }
-        View fullscreenView = customView;
-        KeyEvent nativeKey = new KeyEvent(event);
-        String type = action == KeyEvent.ACTION_DOWN ? "keydown" : "keyup";
-        webView.evaluateJavascript(
-            "window.__tvShell && window.__tvShell.key && window.__tvShell.key('" + type + "','" + key + "')",
-            handled -> {
-                if (!"true".equals(handled) && customView == fullscreenView) {
-                    fullscreenView.dispatchKeyEvent(nativeKey);
-                }
-            });
-        return true;
+    // ----------------------------------------------------- helper access
+    WebView webView() {
+        return webView;
     }
 
-    private void media(String action) {
-        js("window.__tvShell && window.__tvShell.media('" + action + "')");
+    FrameLayout root() {
+        return root;
     }
 
-    private void js(String script) {
+    View errorPanel() {
+        return errorPanel;
+    }
+
+    FullscreenController fullscreen() {
+        return fullscreen;
+    }
+
+    boolean pageReady() {
+        return pageReady;
+    }
+
+    void js(String script) {
         if (webView == null) return;
         webView.evaluateJavascript(script, null);
     }
@@ -639,16 +487,6 @@ public class MainActivity extends Activity {
         splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
         if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
-    }
-
-    private void hideCustomView() {
-        if (customView == null) return;
-        root.removeView(customView);
-        customView = null;
-        webView.setVisibility(View.VISIBLE);
-        webView.requestFocus(View.FOCUS_DOWN);
-        if (customViewCallback != null) customViewCallback.onCustomViewHidden();
-        customViewCallback = null;
     }
 
     private void updateNativePlaybackAvailability() {
@@ -669,8 +507,8 @@ public class MainActivity extends Activity {
         nativePlaybackId = id;
         nativePlaybackContent = NativePlaybackRequest.checkpointContent(payload, bridgeOrigin);
         nativePlaybackDocumentCurrent = true;
-        if (externalDialog != null) externalDialog.dismiss();
-        hideCustomView();
+        externalOffer.dismiss();
+        fullscreen.hide();
         startActivityForResult(intent.putExtra("requestId", id)
             .putExtra("checkpointContent", nativePlaybackContent), NATIVE_PLAYBACK_REQUEST);
     }
@@ -732,37 +570,9 @@ public class MainActivity extends Activity {
         ExternalPlayer.open(this, url.trim(), title, prefs.externalPlayerPackage());
     }
 
-    /**
-     * Ask before leaving the app for a stream, unless the user said not to. One dialog at a time; the
-     * same URL is not offered again within a few seconds (a copy followed by the error of the same
-     * stream, or the player's error burst), but a later attempt on the channel asks again.
-     */
-    void offerExternal(final String url, final String title, boolean becauseOfError) {
-        if (url == null || url.isEmpty() || webView == null || isFinishing()) return;
-        if (becauseOfError && !prefs.promptExternalOnError()) return;
-        if (externalDialog != null && externalDialog.isShowing()) return;
-        long now = SystemClock.uptimeMillis();
-        if (becauseOfError && url.equals(lastOfferedUrl) && now - lastOfferedAt < 5_000) return;
-        lastOfferedUrl = url;
-        lastOfferedAt = now;
-        externalDialog = new AlertDialog.Builder(this)
-            .setTitle(becauseOfError ? R.string.external_prompt_title_error : R.string.external_prompt_title)
-            .setMessage(getString(R.string.external_prompt_message, title == null || title.isEmpty() ? url : title))
-            .setPositiveButton(R.string.external_prompt_open, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    openExternal(url, title);
-                }
-            })
-            .setNegativeButton(R.string.external_prompt_cancel, null)
-            .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                @Override
-                public void onDismiss(DialogInterface dialog) {
-                    externalDialog = null;
-                    if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
-                }
-            })
-            .show();
+    /** Offers an external player for a stream; see {@link ExternalOffer}. */
+    void offerExternal(String url, String title, boolean becauseOfError) {
+        externalOffer.offer(url, title, becauseOfError);
     }
 
     void showExitHint() {
@@ -779,6 +589,7 @@ public class MainActivity extends Activity {
         if (webView == null || isFinishing()) return;
         // requestFocus(FOCUS_DOWN) on a WebView that already has focus moves the page focus to its
         // first element, away from the field that asked for the keyboard.
+        View customView = fullscreen.view();
         View inputView = customView != null ? customView : webView;
         if (!inputView.hasFocus()) inputView.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
@@ -798,7 +609,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
-        hideSystemUi();
+        WindowChrome.hideSystemUi(this);
         if (webView == null) {
             if (!webViewUnavailable) recreate(); // the renderer died while we were in the background
             return;
@@ -850,8 +661,8 @@ public class MainActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        hideSystemUi();
-        int width = screenCssWidth(this);
+        WindowChrome.hideSystemUi(this);
+        int width = ShellDiagnostics.screenCssWidth(this);
         if (webView == null || server == null || errorPanel.getVisibility() == View.VISIBLE || width == loadedScreenWidth) return;
         if (!pageReady) {
             restoreUrl = webView.getUrl();
@@ -902,12 +713,5 @@ public class MainActivity extends Activity {
             webView = null;
         }
         super.onDestroy();
-    }
-
-    private void hideSystemUi() {
-        View decor = getWindow().getDecorView();
-        decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
-            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 }
