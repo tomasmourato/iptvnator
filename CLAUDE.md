@@ -2,17 +2,17 @@
 
 ## Fork: Android port
 
-- Goal: Android phone/tablet mode in `tv-shell/` (approach A in
-  `docs/android/AUDIT.md`); changes stay in `tv-shell/` where possible,
-  upstreamable PRs; fork identity via a Gradle flavor. Electron and PWA builds
-  must keep working.
+- Goal: Android phone/tablet mode in `tv-shell/` (approach A in `docs/android/AUDIT.md`);
+  changes stay in `tv-shell/` where possible, upstreamable PRs; fork identity
+  via a Gradle flavor. Electron and PWA builds must keep working.
 - Read `tv-shell/AGENTS.md` before touching `tv-shell/`.
 - Baseline: `pnpm run serve:frontend:pwa` and `pnpm run build:frontend:pwa`.
-- Environment: Windows, PowerShell, no Visual Studio. Install with
-  `pnpm install --frozen-lockfile --ignore-scripts`; never build the Electron app.
-  Run bash scripts via Git Bash.
+- Environment: Windows, PowerShell (bash scripts via Git Bash), no Visual Studio.
+  Install with `pnpm install --frozen-lockfile --ignore-scripts`; never build the Electron app.
 - Before every commit: `pnpm run lint`, `pnpm run test:frontend`,
-  `pnpm run typecheck:web`, `pnpm run build:frontend:pwa`.
+  `pnpm run typecheck:web`, `pnpm run build:frontend:pwa`. Lint failures in
+  upstream files the fork hasn't changed don't block: note them in the commit
+  body. Any file the fork changes must pass lint.
 - One feature per commit; never touch unrelated files. Don't edit AGENTS.md or
   `.claude/` (upstream-owned; this fork rebases often).
 
