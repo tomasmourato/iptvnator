@@ -208,3 +208,79 @@ finding 8.
 
 Still open (commits 3–5): the bars stay hidden, the TV focus ring and the
 row-30 scroll remain, and there's no touch entry to the shell settings.
+
+### Commit 3: system bars, insets, keyboard resize and fullscreen orientation
+- **Touch outside fullscreen** (`WindowChrome`, platform APIs only; no
+  `androidx.core`, which is only transitively present at 1.1.0):
+  - the theme's `FLAG_FULLSCREEN` is cleared and the bars stay visible;
+  - the window draws edge to edge;
+  - the root view is padded by the system-bar, cutout and IME insets;
+  - the window uses `adjustResize`.
+
+  No immersive flags are set, so the "Viewing full screen" prompt no longer
+  appears.
+- **Touch in fullscreen video** (`FullscreenController`): the bars hide (a
+  swipe shows them briefly) and the screen turns to sensor landscape. Portrait
+  video stays in portrait. Leaving fullscreen restores both.
+- **TV:** unchanged. The window code is a no-op while the mode stays TV, and
+  the manifest keeps `adjustPan`.
+- **`android-touch.mjs` new checks:**
+  - the status bar is visible and the WebView sits between the bars;
+  - no immersive prompt;
+  - fullscreen goes landscape without bars, and back;
+  - the soft keyboard shrinks the page with the focused field visible.
+
+| Check | Result |
+|---|---|
+| `:backend:check` | 65 passed |
+| `android-touch.mjs` phone | 5/5 PASS: page 132..2337 px between the bars; keyboard 840 → 527 CSS px; rotation 411 → 864 (the cutout is now inset) |
+| `android-touch.mjs` tablet | 5/5 PASS: page 48..1536 px; keyboard 744 → 400 CSS px |
+| Phone / tablet emulator suites | 1 / 3 / 1 / 4 PASS on both (tablet file-input passed this time; it's flaky there, see commit 2) |
+| TV emulator suites, served `index.html`, screens | identical to the baseline (0.000% on all 8 shots) |
+| Monorepo gates | as before (lint: only the upstream `ui-playback` failure) |
+
+## Where step 1 stopped (2026-11-15, end of session)
+- **Done:** commits 1–3 (split, touch mode and viewport, bars and insets,
+  keyboard, fullscreen orientation).
+- **Uncommitted work in progress for commit 4** ("skip the remote-control
+  focus layer in touch mode"), left in the working tree:
+  - `tv-shell/android/app/src/main/assets/tvshell/tv.js`: with
+    `data-tvshell-mode="touch"`, `init()` adds `tv-shell-touch` and skips the
+    style layer, the focus mirror, the D-pad key handler and the initial
+    focus (moved into `installRemoteControl()`). `scheduleRefocus()` is a
+    no-op, and `api.back()` skips its focus side effects. All bridge hooks
+    are kept.
+  - `tv-shell/tests/tv-touch.mjs`: a new Chromium test under Pixel 7
+    emulation against `node tv-shell/devserver/server.mjs --www dist/apps/web
+    --port 43332 --touch`. It passes all checks with the new `tv.js`; six
+    checks fail with the committed `tv.js`.
+- **Still to do for commit 4:**
+  - route `MainActivity`/`FullscreenController`/`ExternalOffer`
+    `webView.requestFocus(View.FOCUS_DOWN)` through a touch-aware
+    `focusPage()`. The row-30 list scroll doesn't reproduce in Chromium, so
+    it most likely comes from this native call;
+  - add a ring and list-at-top check to `android-touch.mjs`;
+  - re-run the TV Chromium suites (`tv-remote.mjs`, `tv-longlist.mjs`, which
+    now load the modified `tv.js`), the TV parity run and the phone/tablet
+    checks;
+  - add `tv-touch.mjs` to `.github/workflows/build-tv-shell-apk.yml`.
+- **Next:**
+  - commit 5 (launcher shortcut to the shell settings);
+  - commit 6 (README, `.changes/` note, final summary here);
+  - then one upstream rebase, and re-run the TV checks and the phone
+    checklist.
+- **Findings so far for the remaining checklist items:**
+  - item 8: a phone in landscape (864–914 CSS px, above the app's 640 px
+    breakpoint) still shows the desktop header with `Ctrl+K` and the
+    shortcuts button. That needs an apps/web follow-up, gated by
+    `(pointer: coarse)`;
+  - item 9: no change needed.
+- **To resume:**
+  - restart the AVDs: phone `LisBora_API37` (`emulator-5554`), TV
+    `TvShell_TV_API34` (`-port 5556`), tablet `TvShell_Tablet_API37`
+    (`-port 5558`);
+  - run `WWW=$PWD/dist/apps/web tv-shell/devserver/run-dev.sh` (mock on
+    43331) and the touch devserver above;
+  - build with JDK 17. The TV baseline shots and the screenshot and compare
+    scripts are in the session scratchpad, not the repo; if they're gone,
+    recapture the baseline from `8bc278232`.
