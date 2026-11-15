@@ -92,3 +92,79 @@ No code changed. The goal was to see what breaks on a phone before roadmap step 
 ### Next
 Roadmap step 1: touch mode in tv-shell. It covers items 1–6 (and 7 at the
 same time); then re-run this checklist on the phone AVD.
+
+## Step 1: touch mode in tv-shell
+
+Plan: roadmap step 1 of [AUDIT.md](AUDIT.md), with the nine findings above as
+the acceptance checklist. TV mode must behave exactly as before, so every
+commit that touches app code is checked against a TV baseline taken from the
+unmodified tree. No upstream rebase happens during step 1, because it would
+invalidate the baseline.
+
+### Test setup
+- **AVDs:**
+  - phone: `LisBora_API37`, Pixel 8, 1080×2400 at 420 dpi, API 37;
+  - tablet: `TvShell_Tablet_API37`, Pixel Tablet, 2560×1600 at 320 dpi,
+    same API 37 image;
+  - TV: `TvShell_TV_API34`, 1080p at 320 dpi (960 CSS px), Android TV 14
+    (`system-images/android-34/android-tv/x86`), 2 GB RAM.
+
+  `avdmanager.bat` mangles `;` in package paths on Windows, so the tablet
+  and TV `config.ini` files were written by hand.
+- **Builds:** JDK 17 (portable Microsoft OpenJDK 17.0.21), `gradlew :backend:check
+  :app:assembleDebug`.
+- **Test data:** the devserver's synthetic mock provider (`run-dev.sh`, host
+  port 43331, `adb reverse tcp:43331 tcp:43331`).
+- **Repeatable screens:** a scratch script, not committed:
+  - clears the app's data;
+  - captures home, the add-playlist dialog, the soft keyboard on the URL
+    field, the channel list, three D-pad steps, playback, fullscreen and
+    settings;
+  - records a state fingerprint: viewport, `html` classes, `.tv-focus`
+    elements, active element, IME and rotation.
+
+  Two runs on the same build have identical facts and 0.000% pixel
+  difference, so any later TV difference is real.
+
+### Known harness limits (same before and after)
+- The Playwright `_android` suites hang in `device.close()` after their last
+  check. Results are compared by their PASS lines under a timeout.
+- `android-file-input.mjs` can't run on Android TV: the image has no
+  DocumentsUI. It runs on the phone and tablet.
+- A held Back or Menu (the shell settings on TV) can't be injected: adb's
+  `--longpress` repeats before the 650 ms threshold, and the production TV
+  image has no root for `sendevent`. That path is checked by code review.
+
+### TV baseline (unmodified `8bc278232`)
+| Check | Result |
+|---|---|
+| `:backend:check` (JVM) | 61 passed |
+| `node --test tv-shell/tests/*.test.mjs` | 13 passed |
+| `tv-remote.mjs` / `tv-longlist.mjs` (Chromium, devserver) | 133 / 19 checks, 0 failed |
+| `android-bridge` / `-protocol-discovery` / `-background-media` (TV AVD) | 1 / 1 / 4 PASS |
+| `android-file-input` | n/a on TV (no DocumentsUI) |
+| Served `index.html` | `width=1280, initial-scale=0.75, …`, plain `tvshell/tv.js` tag |
+| Screens | D-pad ring on the playlist switcher at start, ring on channel 10 after load and channel 13 after three Downs, the OK key opens the keyboard on the URL field, fullscreen video |
+
+The phone baseline is the same build on the Pixel 8 AVD:
+- all four emulator suites pass (1 / 3 / 1 / 4 PASS);
+- the screens reproduce findings 1 and 5, including the list opening on
+  channel 30 with a focus ring.
+
+### Commit 1: split MainActivity (no behaviour change)
+`MainActivity` goes from 766 to 574 lines. Code moves verbatim into
+package-private helpers:
+- `KeyRouter`: keys, held Back/Menu, forwarding in fullscreen;
+- `FullscreenController`: the custom view;
+- `ExternalOffer`: the external-player dialog;
+- `WindowChrome`: system bars;
+- `ShellDiagnostics`: screen metrics and the diagnostics text.
+
+| Check | Result |
+|---|---|
+| `:backend:check` | 61 passed |
+| TV emulator suites | PASS lines identical to the baseline |
+| Served `index.html` (TV) | byte-identical |
+| TV screens | facts identical, 0.000% pixel difference on all 8 shots |
+| Phone emulator suites | 1 / 3 / 1 / 4 PASS, the same as the baseline |
+| Monorepo gates | test:frontend, typecheck:web, build:frontend:pwa pass; lint fails only on the pre-existing upstream `ui-playback` max-lines (#2211) |

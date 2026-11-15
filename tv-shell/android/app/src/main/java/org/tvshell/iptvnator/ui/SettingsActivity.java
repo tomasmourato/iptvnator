@@ -173,6 +173,6 @@ public class SettingsActivity extends Activity {
         String port = server == null ? "-" : String.valueOf(server.port());
         if (server != null && ShellApp.onFallbackPort()) port += " (temporary, saved data on " + prefs.serverPort() + ")";
         return getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            port, MainActivity.screenInfo(this) + ", layout " + prefs.layoutWidth()) + "\n" + ua;
+            port, ShellDiagnostics.screenInfo(this) + ", layout " + prefs.layoutWidth()) + "\n" + ua;
     }
 }
