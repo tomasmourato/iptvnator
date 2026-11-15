@@ -1,5 +1,6 @@
 package org.tvshell.iptvnator.ui;
 
+import android.content.pm.ActivityInfo;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
@@ -33,6 +34,7 @@ final class FullscreenController {
         activity.webView().setVisibility(View.GONE);
         view.setFocusable(true);
         view.requestFocus();
+        if (activity.chrome().touch()) enterTouchFullscreen(view);
     }
 
     void hide() {
@@ -44,5 +46,25 @@ final class FullscreenController {
         webView.requestFocus(View.FOCUS_DOWN);
         if (customViewCallback != null) customViewCallback.onCustomViewHidden();
         customViewCallback = null;
+        if (activity.chrome().touch()) {
+            activity.chrome().setFullscreen(false);
+            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        }
+    }
+
+    /**
+     * Touch: fullscreen video hides the bars and turns to landscape like other video apps, unless
+     * the video itself is portrait. A frame without a reachable video (a trailer) counts as landscape.
+     */
+    private void enterTouchFullscreen(final View view) {
+        activity.chrome().setFullscreen(true);
+        activity.webView().evaluateJavascript(
+            "(function(){var e=document.fullscreenElement;var v=e&&(e.tagName==='VIDEO'?e:e.querySelector('video'));"
+                + "return v&&v.videoWidth&&v.videoHeight<=v.videoWidth?'landscape':v&&v.videoWidth?'portrait':'landscape';})()",
+            shape -> {
+                if (customView != view) return; // left fullscreen meanwhile
+                activity.setRequestedOrientation("\"portrait\"".equals(shape)
+                    ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT : ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            });
     }
 }

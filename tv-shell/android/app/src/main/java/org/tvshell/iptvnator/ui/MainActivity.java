@@ -71,6 +71,7 @@ public class MainActivity extends Activity {
     private final KeyRouter keys = new KeyRouter(this);
     private final FullscreenController fullscreen = new FullscreenController(this);
     private ExternalOffer externalOffer;
+    private WindowChrome chrome;
     private FrameLayout root;
     private View splash;
     private View errorPanel;
@@ -126,6 +127,7 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) restoreUrl = savedInstanceState.getString(STATE_URL);
         setContentView(R.layout.activity_main);
         root = findViewById(R.id.root);
+        chrome = new WindowChrome(this, root);
         splash = findViewById(R.id.splash);
         errorPanel = findViewById(R.id.error_panel);
         errorText = findViewById(R.id.error_text);
@@ -361,6 +363,7 @@ public class MainActivity extends Activity {
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(loadedScreenWidth);
         server.setTouchMode(touchMode);
+        chrome.setTouch(touchMode);
         // After a process restart the route the user was on (the SPA fallback serves it); else the root.
         String url = restoreUrl != null && restoreUrl.startsWith(server.baseUrl()) ? restoreUrl : server.baseUrl();
         restoreUrl = null;
@@ -442,6 +445,10 @@ public class MainActivity extends Activity {
         return errorPanel;
     }
 
+    WindowChrome chrome() {
+        return chrome;
+    }
+
     FullscreenController fullscreen() {
         return fullscreen;
     }
@@ -514,7 +521,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
-        WindowChrome.hideSystemUi(this);
+        chrome.refresh();
         if (webView == null) {
             if (!webViewUnavailable) recreate(); // the renderer died while we were in the background
             return;
@@ -561,7 +568,7 @@ public class MainActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        WindowChrome.hideSystemUi(this);
+        chrome.refresh();
         // Touch mode serves width=device-width: there is no pinned scale to follow, and a reload would
         // stop playback on every rotation.
         if (webView != null && server != null && !touchMode && errorPanel.getVisibility() != View.VISIBLE
