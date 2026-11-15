@@ -29,7 +29,8 @@ final class ShellDiagnostics {
         return dm.widthPixels + "\u00d7" + dm.heightPixels + " px, density " + dm.density + " \u2192 " + screenCssWidth(context) + " px CSS";
     }
 
-    static String describe(Context context, Prefs prefs, TvShellServer server, int loadedLayoutWidth) {
+    /** @param layout the loaded layout width, or "touch" for the touch interface */
+    static String describe(Context context, Prefs prefs, TvShellServer server, String layout) {
         String chrome = "?";
         String webViewPackage = "";
         try {
@@ -50,6 +51,6 @@ final class ShellDiagnostics {
         String port = server == null ? "-" : String.valueOf(server.port());
         if (server != null && ShellApp.onFallbackPort()) port += " (temporary, saved data on " + prefs.serverPort() + ")";
         return context.getString(R.string.diagnostics, chrome, webViewPackage, Build.MODEL, Build.VERSION.RELEASE,
-            port, screenInfo(context) + ", layout " + loadedLayoutWidth);
+            port, screenInfo(context) + ", layout " + layout);
     }
 }

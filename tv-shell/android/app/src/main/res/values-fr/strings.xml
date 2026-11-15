@@ -24,6 +24,11 @@
     <string name="external_prompt_message">%1$s\n\nLe lecteur intégré (navigateur) ne gère pas ce format de flux. L\'ouvrir dans un lecteur vidéo installé (VLC, …) ?</string>
     <string name="external_prompt_open">Ouvrir dans un lecteur</string>
     <string name="external_prompt_cancel">Annuler</string>
+    <string name="setting_interface">Interface</string>
+    <string name="setting_interface_hint">TV pour une télécommande, tactile pour un téléphone ou une tablette. Automatique choisit selon l\'appareil.</string>
+    <string name="interface_auto">Automatique</string>
+    <string name="interface_tv">TV</string>
+    <string name="interface_touch">Tactile</string>
     <string name="setting_width">Taille de l\'interface</string>
     <string name="setting_width_hint">Largeur de la mise en page web. Plus le texte est grand, moins il y a de contenu par écran.</string>
     <string name="width_960">Grande (960)</string>

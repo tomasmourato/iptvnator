@@ -4,7 +4,7 @@ import { createServer, get } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { handleRequest, serveStatic } from '../devserver/server.mjs';
+import { handleRequest, injectTvLayer, serveStatic } from '../devserver/server.mjs';
 
 test('static responses stay inside the web root, including through symlinks', async () => {
     const fixture = mkdtempSync(join(tmpdir(), 'iptvnator-static-test-'));
@@ -53,4 +53,24 @@ test('malformed request targets return 400 and the server keeps responding', asy
     } finally {
         await new Promise((resolve) => server.close(resolve));
     }
+});
+
+// Mirrors ShellSiteTest: the APK's ShellSite and the devserver must serve the same index.html.
+const SYNTHETIC_INDEX = '<head><base href="./"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+    + '<script src="assets/app-config.js" defer=""></script></head>';
+
+test('the TV transformation pins the layout width and loads tv.js before the config', () => {
+    const html = injectTvLayer(SYNTHETIC_INDEX);
+    assert.match(html, /<base href="\/">/);
+    assert.match(html, /<meta name="viewport" content="width=1280">/);
+    assert.match(html, /<script src="tvshell\/tv.js" defer><\/script>\n {8}<script src="assets\/app-config.js"/);
+    assert.doesNotMatch(html, /data-tvshell-mode/);
+    assert.equal(injectTvLayer(SYNTHETIC_INDEX, 960), html.replace('width=1280', 'width=960'));
+});
+
+test('the touch transformation keeps the device width and tells tv.js', () => {
+    const html = injectTvLayer(SYNTHETIC_INDEX, 1280, true);
+    assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
+    assert.doesNotMatch(html, /maximum-scale|minimum-scale|width=1280/);
+    assert.match(html, /<script src="tvshell\/tv.js" data-tvshell-mode="touch" defer><\/script>\n {8}<script src="assets\/app-config.js"/);
 });

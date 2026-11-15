@@ -35,6 +35,8 @@ const opt = (name, def) => {
 const WWW = resolve(opt('--www', join(__dirname, '..', 'www')));
 const PORT = Number(opt('--port', '43330'));
 const TV_JS = resolve(opt('--tv', join(__dirname, '..', 'android', 'app', 'src', 'main', 'assets', 'tvshell', 'tv.js')));
+// Touch interface (phones, tablets), as ShellSite serves it in the APK's touch mode.
+const TOUCH = args.includes('--touch') || process.env.TVSHELL_TOUCH === '1';
 const PROVIDER_ORIGINS = [
     `http://127.0.0.1:${process.env.MOCK_PORT || '43331'}`,
     ...(process.env.TVSHELL_PROVIDER_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
@@ -335,7 +337,7 @@ export function serveStatic(res, url, www = WWW) {
     const ext = extname(file).toLowerCase();
     if (file.endsWith('index.html')) {
         let html = readFileSync(actual, 'utf8');
-        html = injectTvLayer(html);
+        html = injectTvLayer(html, 1280, TOUCH);
         res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
         return res.end(html);
     }
@@ -346,15 +348,17 @@ export function serveStatic(res, url, www = WWW) {
 /**
  * Same transformation as TvShellServer.java: load the TV layer before the
  * Angular bundle (defer keeps document order), widen the layout viewport so
- * the desktop layout is used on a TV, and neutralise the base href.
+ * the desktop layout is used on a TV, and neutralise the base href. In touch
+ * mode the page keeps the device width and tv.js leaves out its focus layer.
  */
-export function injectTvLayer(html, layoutWidth = 1280) {
+export function injectTvLayer(html, layoutWidth = 1280, touch = false) {
     html = html.replace(/<base href="[^"]*"\s*\/?>/, '<base href="/">');
-    html = html.replace(
-        /<meta name="viewport"[^>]*>/,
-        `<meta name="viewport" content="width=${layoutWidth}">`
-    );
-    html = html.replace('<script src="assets/app-config.js"', '<script src="tvshell/tv.js" defer></script>\n        <script src="assets/app-config.js"');
+    const viewport = touch ? 'width=device-width, initial-scale=1' : `width=${layoutWidth}`;
+    html = html.replace(/<meta name="viewport"[^>]*>/, `<meta name="viewport" content="${viewport}">`);
+    const tag = touch
+        ? '<script src="tvshell/tv.js" data-tvshell-mode="touch" defer></script>'
+        : '<script src="tvshell/tv.js" defer></script>';
+    html = html.replace('<script src="assets/app-config.js"', `${tag}\n        <script src="assets/app-config.js"`);
     return html;
 }
 

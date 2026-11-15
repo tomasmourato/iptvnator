@@ -3,6 +3,8 @@ package org.tvshell.iptvnator;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.tvshell.iptvnator.backend.InterfaceMode;
+
 /** The shell's few settings. */
 public class Prefs {
 
@@ -12,6 +14,7 @@ public class Prefs {
     public static final String KEY_EXTERNAL_PLAYER = "externalPlayerPackage";
     public static final String KEY_SERVER_PORT = "serverPort";
     public static final String KEY_DEBUG = "webDebug";
+    public static final String KEY_INTERFACE_MODE = "interfaceMode";
 
     public static final int DEFAULT_LAYOUT_WIDTH = 1280;
 
@@ -69,5 +72,14 @@ public class Prefs {
 
     public void setWebDebug(boolean value) {
         prefs.edit().putBoolean(KEY_DEBUG, value).apply();
+    }
+
+    /** Interface choice: "auto" (detected), "tv" or "touch"; see {@code InterfaceMode}. */
+    public String interfaceMode() {
+        return InterfaceMode.normalize(prefs.getString(KEY_INTERFACE_MODE, InterfaceMode.AUTO));
+    }
+
+    public void setInterfaceMode(String mode) {
+        prefs.edit().putString(KEY_INTERFACE_MODE, InterfaceMode.normalize(mode)).apply();
     }
 }

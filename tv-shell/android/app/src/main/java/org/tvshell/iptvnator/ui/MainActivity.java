@@ -85,6 +85,10 @@ public class MainActivity extends Activity {
     private boolean webViewUnavailable;
     private int loadedLayoutWidth;
     private int loadedScreenWidth;
+    /** The interface setting the page was loaded with; a change in the settings reloads. */
+    private String loadedInterfaceMode;
+    /** Touch interface (phone, tablet): device-width page, no remote-control focus layer. */
+    private boolean touchMode;
     private String restoreUrl;
     /** The route at the last pause, for the relaunch after the system reclaimed the hidden renderer. */
     private String lastRoute;
@@ -297,10 +301,19 @@ public class MainActivity extends Activity {
             rendererDeaths = 0;
             server = ShellApp.currentServer(); // so the diagnostics show the port
             loadedLayoutWidth = prefs.layoutWidth(); // and the layout; also keeps onResume() from reloading over the panel
+            loadedInterfaceMode = prefs.interfaceMode();
             showError(getString(R.string.renderer_gone_loop));
         } else {
             load();
         }
+    }
+
+    /** TV: the pinned layout, no zoom. Touch: pinch-zoom on a device-width page. */
+    private void applyZoom(WebSettings s) {
+        s.setLoadWithOverviewMode(!touchMode);
+        s.setSupportZoom(touchMode);
+        s.setBuiltInZoomControls(touchMode);
+        s.setDisplayZoomControls(false);
     }
 
     private boolean isDebugBuild() {
@@ -331,6 +344,9 @@ public class MainActivity extends Activity {
         setKeepScreenOn(true); // through the splash; the page then reports its playback state
         loadedLayoutWidth = prefs.layoutWidth();
         loadedScreenWidth = ShellDiagnostics.screenCssWidth(this);
+        loadedInterfaceMode = prefs.interfaceMode();
+        touchMode = ShellMode.isTouch(this, prefs);
+        applyZoom(webView.getSettings());
         server = ((ShellApp) getApplication()).ensureServer();
         if (server == null) {
             showError(getString(R.string.server_error));
@@ -344,6 +360,7 @@ public class MainActivity extends Activity {
         if (ShellApp.onFallbackPort()) toast(getString(R.string.port_fallback, prefs.serverPort(), server.port()));
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(loadedScreenWidth);
+        server.setTouchMode(touchMode);
         // After a process restart the route the user was on (the SPA fallback serves it); else the root.
         String url = restoreUrl != null && restoreUrl.startsWith(server.baseUrl()) ? restoreUrl : server.baseUrl();
         restoreUrl = null;
@@ -398,7 +415,7 @@ public class MainActivity extends Activity {
     }
 
     String diagnostics() {
-        return ShellDiagnostics.describe(this, prefs, server, loadedLayoutWidth);
+        return ShellDiagnostics.describe(this, prefs, server, touchMode ? "touch" : String.valueOf(loadedLayoutWidth));
     }
 
     // ------------------------------------------------------------- keys
@@ -511,7 +528,7 @@ public class MainActivity extends Activity {
             SettingsActivity.dataCleared = false;
             if (webView != null) webView.clearCache(true);
             load();
-        } else if (server != null && prefs.layoutWidth() != loadedLayoutWidth) {
+        } else if (server != null && (prefs.layoutWidth() != loadedLayoutWidth || !prefs.interfaceMode().equals(loadedInterfaceMode))) {
             load();
         } else if (server != null && ShellApp.onFallbackPort() && ((ShellApp) getApplication()).ensureServer() != server) {
             load(); // the saved port is free again: back to the origin that holds the user's data
@@ -545,7 +562,10 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         WindowChrome.hideSystemUi(this);
-        if (webView != null && server != null && errorPanel.getVisibility() != View.VISIBLE && ShellDiagnostics.screenCssWidth(this) != loadedScreenWidth) {
+        // Touch mode serves width=device-width: there is no pinned scale to follow, and a reload would
+        // stop playback on every rotation.
+        if (webView != null && server != null && !touchMode && errorPanel.getVisibility() != View.VISIBLE
+            && ShellDiagnostics.screenCssWidth(this) != loadedScreenWidth) {
             restoreUrl = webView.getUrl(); // the same page with the new scale (load() checks the origin)
             load();
         }
