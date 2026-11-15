@@ -21,11 +21,12 @@ import android.widget.Toast;
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.InterfaceMode;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 import java.util.List;
 
-/** The shell's settings: layout width, external player, data reset, diagnostics. D-pad friendly. */
+/** The shell's settings: interface, layout width, external player, data reset, diagnostics. D-pad friendly. */
 public class SettingsActivity extends Activity {
 
     /** Set when the web app data was wiped, so the main screen reloads. */
@@ -39,6 +40,20 @@ public class SettingsActivity extends Activity {
         prefs = new Prefs(this);
         setContentView(R.layout.activity_settings);
 
+        // Interface: automatic, TV (remote control) or touch (phone, tablet)
+        RadioGroup interfaceGroup = findViewById(R.id.interface_group);
+        String mode = prefs.interfaceMode();
+        ((RadioButton) findViewById(InterfaceMode.TV.equals(mode) ? R.id.interface_tv
+            : InterfaceMode.TOUCH.equals(mode) ? R.id.interface_touch : R.id.interface_auto)).setChecked(true);
+        interfaceGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                prefs.setInterfaceMode(checkedId == R.id.interface_tv ? InterfaceMode.TV
+                    : checkedId == R.id.interface_touch ? InterfaceMode.TOUCH : InterfaceMode.AUTO);
+                showWidthChoice();
+            }
+        });
+
         // Layout width
         RadioGroup widthGroup = findViewById(R.id.width_group);
         int width = prefs.layoutWidth();
@@ -49,6 +64,7 @@ public class SettingsActivity extends Activity {
                 prefs.setLayoutWidth(checkedId == R.id.width_960 ? 960 : checkedId == R.id.width_1600 ? 1600 : 1280);
             }
         });
+        showWidthChoice();
 
         CheckBox nativePlayback = findViewById(R.id.native_playback);
         nativePlayback.setChecked(prefs.nativePlayback());
@@ -129,6 +145,14 @@ public class SettingsActivity extends Activity {
 
         ((TextView) findViewById(R.id.diagnostics)).setText(diagnostics());
         done.requestFocus();
+    }
+
+    /** The layout width only applies to the TV interface; touch serves the device width. */
+    private void showWidthChoice() {
+        int visibility = ShellMode.isTouch(this, prefs) ? View.GONE : View.VISIBLE;
+        findViewById(R.id.width_section).setVisibility(visibility);
+        findViewById(R.id.width_hint).setVisibility(visibility);
+        findViewById(R.id.width_group).setVisibility(visibility);
     }
 
     private void confirmReset() {
