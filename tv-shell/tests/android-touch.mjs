@@ -16,7 +16,7 @@ const shotsAt = process.argv.indexOf('--shots');
 const shots = shotsAt > 0 ? process.argv[shotsAt + 1] : null;
 if (shots) mkdirSync(shots, { recursive: true });
 const adbPath = join(process.env.ANDROID_HOME, 'platform-tools/adb');
-const adb = (...args) => execFileSync(adbPath, ['-s', serial, ...args], { encoding: 'utf8', timeout: 30000 });
+const adb = (...args) => execFileSync(adbPath, ['-s', serial, ...args], { encoding: 'utf8', timeout: 30000, maxBuffer: 64 << 20 });
 const shot = (name) => shots && writeFileSync(join(shots, `${name}.png`), execFileSync(adbPath, ['-s', serial, 'exec-out', 'screencap', '-p'], { maxBuffer: 64 << 20 }));
 const rotate = (quarterTurns) => adb('shell', 'settings', 'put', 'system', 'user_rotation', String(quarterTurns));
 async function until(check, message, tries = 40) {
@@ -25,6 +25,37 @@ async function until(check, message, tries = 40) {
         await delay(250);
     }
     assert.fail(message);
+}
+
+/** On-screen bounds [left, top, right, bottom] of the shell's WebView, from a UI dump. */
+async function webViewBounds() {
+    for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+            adb('shell', 'uiautomator', 'dump', '--compressed', '/sdcard/touch-ui.xml');
+            const xml = adb('exec-out', 'cat', '/sdcard/touch-ui.xml');
+            const node = (xml.match(/<node\b[^>]+>/g) || []).find((n) => n.includes('class="android.webkit.WebView"'));
+            if (node) return /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node).slice(1).map(Number);
+        } catch {
+            // "could not get idle state" while the page animates
+        }
+        await delay(700);
+    }
+    assert.fail('WebView not found in the UI dump');
+}
+/** Frame [top, bottom] and visibility of a system inset source (statusBars, navigationBars, ime). */
+function insetSource(type) {
+    const match = new RegExp(`type=${type} frame=\\[\\d+,(\\d+)\\]\\[\\d+,(\\d+)\\] visible=(\\w+)`).exec(adb('shell', 'dumpsys', 'window'));
+    return match ? { top: +match[1], bottom: +match[2], visible: match[3] === 'true' } : null;
+}
+/** A real touchscreen tap on an element (CSS rect → device px, offset by the WebView's bounds). */
+async function tap(page, locator) {
+    const r = await locator.evaluate((el) => {
+        el.scrollIntoView({ block: 'center' });
+        const b = el.getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2, k: window.visualViewport.scale * window.devicePixelRatio };
+    });
+    const [left, top] = await webViewBounds();
+    adb('shell', 'input', 'tap', String(Math.round(left + r.x * r.k)), String(Math.round(top + r.y * r.k)));
 }
 
 const [, density] = /(\d+)\s*$/.exec(adb('shell', 'wm', 'density').trim());
@@ -109,6 +140,43 @@ try {
     await until(async () => (await page.evaluate(() => window.innerWidth)) === before.width, 'the page did not rotate back');
     assert.equal(await page.evaluate(() => window.__touchPageMarker), 'kept', 'rotating back reloaded the page');
     console.log(`PASS rotation keeps the page and playback (${before.width} → ${after.width} CSS px, no reload)`);
+
+    // 3. System bars stay visible outside fullscreen and the page sits between them; no immersive prompt.
+    const status = insetSource('statusBars');
+    const nav = insetSource('navigationBars');
+    assert.ok(status?.visible, 'status bar visible');
+    const [, webTop, , webBottom] = await webViewBounds();
+    assert.ok(webTop >= status.bottom, `page starts below the status bar (${webTop} >= ${status.bottom})`);
+    if (nav?.visible) assert.ok(webBottom <= nav.top, `page ends above the navigation bar (${webBottom} <= ${nav.top})`);
+    assert.doesNotMatch(adb('exec-out', 'cat', '/sdcard/touch-ui.xml'), /Viewing full screen/, 'no immersive-mode prompt');
+    shot('touch-04-bars');
+    console.log(`PASS system bars visible, page between them (${webTop}..${webBottom} px)`);
+
+    // 6a. Fullscreen video hides the bars and turns to landscape; leaving it restores both.
+    await page.evaluate(() => document.querySelector('video').requestFullscreen());
+    await until(async () => (await page.evaluate(() => window.innerWidth > window.innerHeight)), 'fullscreen video did not turn to landscape');
+    await until(() => insetSource('statusBars')?.visible === false, 'bars still visible in fullscreen');
+    shot('touch-05-fullscreen');
+    await page.evaluate(() => document.exitFullscreen());
+    await until(async () => (await page.evaluate(() => window.innerWidth)) === before.width, 'leaving fullscreen did not restore the orientation');
+    await until(() => insetSource('statusBars')?.visible === true, 'bars did not come back after fullscreen');
+    console.log('PASS fullscreen video turns to landscape without bars, and back');
+
+    // 6b. The soft keyboard resizes the page: the focused field stays visible above it.
+    await page.goto(new URL('/workspace/settings', page.url()).href);
+    const search = page.locator('input').first();
+    await until(() => search.isVisible(), 'settings search field missing');
+    const heightBefore = await page.evaluate(() => window.innerHeight);
+    await tap(page, search);
+    await until(() => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')), 'the soft keyboard did not open');
+    await until(async () => (await page.evaluate(() => window.innerHeight)) < heightBefore, 'the page did not resize for the keyboard');
+    const ime = insetSource('ime');
+    const [, , , bottomWithIme] = await webViewBounds();
+    assert.ok(!ime || bottomWithIme <= ime.top + 1, `page ends above the keyboard (${bottomWithIme} <= ${ime?.top})`);
+    assert.ok(await page.evaluate(() => document.activeElement.getBoundingClientRect().bottom <= window.innerHeight), 'focused field visible');
+    shot('touch-06-keyboard');
+    adb('shell', 'input', 'keyevent', '111'); // Escape: close the keyboard
+    console.log(`PASS the keyboard resizes the page (${heightBefore} → ${await page.evaluate(() => window.innerHeight)} CSS px)`);
 } finally {
     rotate(0);
     adb('reverse', '--remove', 'tcp:43331');
