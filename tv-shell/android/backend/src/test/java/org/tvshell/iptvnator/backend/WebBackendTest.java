@@ -29,6 +29,13 @@ public class WebBackendTest {
             }
             throw new ProviderException(404, "Not Found");
         }
+
+        /** The table's answer as the UTF-8 bytes a provider would send. */
+        @Override
+        public RawResult getRaw(String url, Map<String, String> requestHeaders, int timeoutMs) throws ProviderException {
+            Result text = get(url, requestHeaders, timeoutMs);
+            return new RawResult(text.status, Utf8Sink.of(text.body.getBytes(HttpFetcher.UTF8)), text.contentType);
+        }
     }
 
     static Map<String, List<String>> query(String... keyValues) {

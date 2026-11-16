@@ -1,6 +1,7 @@
 package org.tvshell.iptvnator.backend;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.util.ArrayList;
@@ -14,6 +15,9 @@ import java.util.List;
  * of tens of MB then costs its own size; a doubling array costs up to twice that, plus a final
  * copy. The body is served from the chunks ({@link #openStream()}, {@link #length()}).
  *
+ * A provider answer read with {@link #readFrom} can be placed into another sink by reference
+ * ({@link #appendRange}): an Xtream catalogue is then held once, from the socket to the WebView.
+ *
  * An unpaired surrogate becomes '?', as String.getBytes(UTF-8) does.
  */
 final class Utf8Sink implements Appendable {
@@ -22,9 +26,22 @@ final class Utf8Sink implements Appendable {
     /** Just under 1 MB: one G1 region on a desktop JVM; ART keeps such an array in its large-object space. */
     static final int MAX_CHUNK = (1 << 20) - 4096;
 
+    /** A run of bytes inside an array this sink holds (possibly one shared with another sink). */
+    static final class Slice {
+        final byte[] bytes;
+        final int offset;
+        final int length;
+
+        Slice(byte[] bytes, int offset, int length) {
+            this.bytes = bytes;
+            this.offset = offset;
+            this.length = length;
+        }
+    }
+
     private final int maxChunk;
-    /** Every chunk here is full; the one being filled is {@link #buf}. */
-    private final List<byte[]> full = new ArrayList<byte[]>();
+    /** Every slice here is complete; the chunk being filled is {@link #buf}. */
+    private final List<Slice> full = new ArrayList<Slice>();
     private long fullBytes;
     private byte[] buf;
     private int count;
@@ -48,6 +65,21 @@ final class Utf8Sink implements Appendable {
     /** A body made of {@code bytes} as they are (not copied). */
     static Utf8Sink of(byte[] bytes) {
         return new Utf8Sink(bytes == null ? new byte[0] : bytes);
+    }
+
+    /**
+     * Reads {@code in} to its end straight into chunks (no doubling buffer, no final copy).
+     * Returns null as soon as more than {@code limit} bytes arrive.
+     */
+    static Utf8Sink readFrom(InputStream in, long limit) throws IOException {
+        Utf8Sink sink = new Utf8Sink(64 * 1024, MAX_CHUNK);
+        while (true) {
+            if (sink.count == sink.buf.length) sink.nextChunk();
+            int read = in.read(sink.buf, sink.count, sink.buf.length - sink.count);
+            if (read == -1) return sink;
+            sink.count += read;
+            if (sink.fullBytes + sink.count > limit) return null;
+        }
     }
 
     @Override
@@ -95,6 +127,38 @@ final class Utf8Sink implements Appendable {
         return this;
     }
 
+    /**
+     * Appends bytes {@code from} (inclusive) to {@code to} (exclusive) of {@code source} by
+     * reference: the arrays are shared, not copied, so {@code source} must not change afterwards.
+     */
+    Utf8Sink appendRange(Utf8Sink source, long from, long to) {
+        finish();
+        if (count > 0) full.add(new Slice(buf, 0, count));
+        fullBytes += count;
+        buf = new byte[FIRST_CHUNK];
+        count = 0;
+        long position = 0;
+        for (Slice slice : source.slices()) {
+            long start = Math.max(from, position);
+            long end = Math.min(to, position + slice.length);
+            if (start < end) {
+                full.add(new Slice(slice.bytes, slice.offset + (int) (start - position), (int) (end - start)));
+                fullBytes += end - start;
+            }
+            position += slice.length;
+        }
+        return this;
+    }
+
+    /** Every byte held, in order, as slices of the arrays themselves (nothing copied). */
+    List<Slice> slices() {
+        finish();
+        List<Slice> all = new ArrayList<Slice>(full.size() + 1);
+        all.addAll(full);
+        if (count > 0) all.add(new Slice(buf, 0, count));
+        return all;
+    }
+
     /** Number of bytes written (a trailing unpaired high surrogate counts as its '?'). */
     long length() {
         finish();
@@ -103,10 +167,8 @@ final class Utf8Sink implements Appendable {
 
     /** The bytes, read from the chunks in place; each call opens a new stream. */
     InputStream openStream() {
-        finish();
-        List<InputStream> parts = new ArrayList<InputStream>(full.size() + 1);
-        for (byte[] chunk : full) parts.add(new ByteArrayInputStream(chunk));
-        parts.add(new ByteArrayInputStream(buf, 0, count));
+        List<InputStream> parts = new ArrayList<InputStream>();
+        for (Slice slice : slices()) parts.add(new ByteArrayInputStream(slice.bytes, slice.offset, slice.length));
         return new SequenceInputStream(Collections.enumeration(parts));
     }
 
@@ -116,11 +178,10 @@ final class Utf8Sink implements Appendable {
         if (length > Integer.MAX_VALUE) throw new IllegalStateException("body too large for one array");
         byte[] out = new byte[(int) length];
         int pos = 0;
-        for (byte[] chunk : full) {
-            System.arraycopy(chunk, 0, out, pos, chunk.length);
-            pos += chunk.length;
+        for (Slice slice : slices()) {
+            System.arraycopy(slice.bytes, slice.offset, out, pos, slice.length);
+            pos += slice.length;
         }
-        System.arraycopy(buf, 0, out, pos, count);
         return out;
     }
 
@@ -131,15 +192,17 @@ final class Utf8Sink implements Appendable {
         }
     }
 
-    private void put(int b) {
-        if (count == buf.length) {
-            if (count > 0) {
-                full.add(buf);
-                fullBytes += count;
-            }
-            buf = new byte[Math.min(maxChunk, Math.max(FIRST_CHUNK, buf.length * 2))];
-            count = 0;
+    private void nextChunk() {
+        if (count > 0) {
+            full.add(new Slice(buf, 0, count));
+            fullBytes += count;
         }
+        buf = new byte[Math.min(maxChunk, Math.max(FIRST_CHUNK, buf.length * 2))];
+        count = 0;
+    }
+
+    private void put(int b) {
+        if (count == buf.length) nextChunk();
         buf[count++] = (byte) b;
     }
 }

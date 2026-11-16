@@ -208,9 +208,10 @@ public class WebBackend {
             String userAgent = query.get("userAgent");
             if (userAgent != null) headers.put("User-Agent", userAgent);
             String requestUrl = PortalUrls.withQuery(PortalUrls.xtreamApiUrl(base), params);
-            HttpFetcher.Result result = connectionTest
-                ? fetcher.testConnection(requestUrl, headers, TIMEOUT_XTREAM_MS)
-                : fetcher.get(requestUrl, headers, TIMEOUT_XTREAM_MS);
+            if (!connectionTest) {
+                return new Response(200, JSON_TYPE, ProviderPayload.envelope(action, fetcher.getRaw(requestUrl, headers, TIMEOUT_XTREAM_MS)));
+            }
+            HttpFetcher.Result result = fetcher.testConnection(requestUrl, headers, TIMEOUT_XTREAM_MS);
             Map<String, Object> out = Json.object();
             out.put("action", action);
             out.put("payload", payloadOf(result.body));
@@ -252,11 +253,7 @@ public class WebBackend {
             if (macAddress == null) headers.remove("Cookie");
             String requestUrl = PortalUrls.buildStalkerRequestUrl(portalUrl, identity.requestParams);
             int timeout = "create_link".equals(params.get("action")) ? TIMEOUT_STALKER_CREATE_LINK_MS : TIMEOUT_STALKER_MS;
-            HttpFetcher.Result result = fetcher.get(requestUrl, headers, timeout);
-            Map<String, Object> out = Json.object();
-            out.put("action", action);
-            out.put("payload", payloadOf(result.body));
-            return json(200, out);
+            return new Response(200, JSON_TYPE, ProviderPayload.envelope(action, fetcher.getRaw(requestUrl, headers, timeout)));
         } catch (ProviderException e) {
             return json(200, e.toErrorBody());
         } catch (IllegalArgumentException e) {

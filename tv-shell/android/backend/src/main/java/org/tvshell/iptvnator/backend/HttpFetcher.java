@@ -1,7 +1,6 @@
 package org.tvshell.iptvnator.backend;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
@@ -49,7 +48,13 @@ public class HttpFetcher {
      * request thread: any other thread's allocation could fail and take the whole app down.
      */
     static final long MAX_BODY_BYTES = Math.min(64L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 8);
-    private static final Charset UTF8 = Charset.forName("UTF-8");
+    /**
+     * Cap for {@link #getRaw}: the answer is kept once, as the bytes received, and served from them
+     * (no String, no copy), so it may take a quarter of the heap: 128 MB on a 512 MB largeHeap,
+     * 64 MB on a 1 GB stick. Xtream catalogues of 80 MB and more exist.
+     */
+    static final long MAX_PASSTHROUGH_BYTES = Math.min(256L * 1024 * 1024, Runtime.getRuntime().maxMemory() / 4);
+    static final Charset UTF8 = Charset.forName("UTF-8");
 
     /** The body exceeds the cap (declared up front, or found while reading). */
     static final class TooLargeException extends IOException {
@@ -57,51 +62,6 @@ public class HttpFetcher {
 
         TooLargeException() {
             super("Response too large");
-        }
-    }
-
-    private static final class EncodedBody extends FilterInputStream {
-        private final long declared;
-        private final byte[] singleByte = new byte[1];
-        private long count;
-        private boolean eof;
-        private IOException failure;
-
-        EncodedBody(InputStream in, long declared) {
-            super(in);
-            this.declared = declared;
-        }
-
-        @Override
-        public int read() throws IOException {
-            return read(singleByte, 0, 1) == -1 ? -1 : singleByte[0] & 0xff;
-        }
-
-        @Override
-        public int read(byte[] buffer, int offset, int length) throws IOException {
-            try {
-                int read = super.read(buffer, offset, length);
-                if (read == -1) eof = true;
-                else count += read;
-                if (count > MAX_BODY_BYTES) throw new TooLargeException();
-                return read;
-            } catch (IOException e) {
-                failure = e;
-                throw e;
-            }
-        }
-
-        @Override
-        public int available() {
-            // Android's gzip decoder uses this to decide whether to try the next member.
-            return eof || count == declared ? 0 : 1;
-        }
-
-        void requireComplete() throws IOException {
-            if (failure != null) throw failure;
-            if ((declared >= 0 && count != declared) || (declared < 0 && !eof && read() != -1)) {
-                throw new IOException("Incomplete provider response");
-            }
         }
     }
 
@@ -116,6 +76,16 @@ public class HttpFetcher {
             this.contentType = contentType;
         }
     }
+
+    /** Reads a (decoded) body of at most {@code limit} bytes; {@code declared} is -1 when unknown. */
+    private interface BodyReader<T> {
+        T read(int status, String contentType, InputStream in, long declared, long limit) throws IOException;
+    }
+
+    private static final BodyReader<Result> TEXT = (status, contentType, in, declared, limit) ->
+        new Result(status, new String(readAll(in, declared, limit), charsetOf(contentType)), contentType);
+
+    private static final BodyReader<RawResult> RAW = RawResult::read;
 
     /**
      * Same rule as the web backend's ValidatedHttpClient (SENSITIVE_HEADERS): identity
@@ -145,20 +115,34 @@ public class HttpFetcher {
     }
 
     public Result get(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
-        RequestProgress progress = new RequestProgress();
-        try {
-            return fetch(url, headers, timeoutMs, progress);
-        } catch (ProviderException failure) {
-            failure.initialResponded |= progress.initialResponded;
-            throw failure;
-        }
+        return fetchTracked(url, headers, timeoutMs, MAX_BODY_BYTES, TEXT);
+    }
+
+    /**
+     * {@link #get}, but the body stays the bytes received, up to {@link #MAX_PASSTHROUGH_BYTES}:
+     * for JSON answers that are passed through to the PWA without being decoded.
+     */
+    public RawResult getRaw(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
+        return fetchTracked(url, headers, timeoutMs, MAX_PASSTHROUGH_BYTES, RAW);
     }
 
     public Result testConnection(String url, Map<String, String> headers, int timeoutMs) throws ProviderException {
         return get(url, headers, timeoutMs);
     }
 
-    private Result fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress) throws ProviderException {
+    private <T> T fetchTracked(String url, Map<String, String> headers, int timeoutMs, long limit, BodyReader<T> reader)
+        throws ProviderException {
+        RequestProgress progress = new RequestProgress();
+        try {
+            return fetch(url, headers, timeoutMs, progress, limit, reader);
+        } catch (ProviderException failure) {
+            failure.initialResponded |= progress.initialResponded;
+            throw failure;
+        }
+    }
+
+    private <T> T fetch(String url, Map<String, String> headers, int timeoutMs, RequestProgress progress, long limit,
+        BodyReader<T> reader) throws ProviderException {
         Set<String> visited = new HashSet<String>();
         String current = url;
         for (int redirects = 0; ; redirects++) {
@@ -231,7 +215,7 @@ public class HttpFetcher {
                 String contentType = connection.getContentType();
                 // Declared size first: an oversized answer is refused before a byte of it is read.
                 long declared = connection.getContentLengthLong();
-                if (declared > MAX_BODY_BYTES) throw tooLarge();
+                if (declared > limit) throw tooLarge();
                 InputStream in;
                 try {
                     in = connection.getInputStream();
@@ -243,11 +227,11 @@ public class HttpFetcher {
                 boolean gzip = encoding.contains("gzip");
                 boolean compressed = gzip || encoding.contains("deflate");
                 try {
-                    EncodedBody wire = compressed ? new EncodedBody(in, declared) : null;
+                    EncodedBody wire = compressed ? new EncodedBody(in, declared, limit) : null;
                     if (wire != null) in = gzip ? new GZIPInputStream(wire) : new InflaterInputStream(wire);
-                    byte[] body = readAll(in, compressed ? -1 : declared, MAX_BODY_BYTES);
+                    T result = reader.read(status, contentType, in, compressed ? -1 : declared, limit);
                     if (wire != null) wire.requireComplete();
-                    return new Result(status, new String(body, charsetOf(contentType)), contentType);
+                    return result;
                 } catch (TooLargeException e) {
                     throw tooLarge();
                 } catch (IOException e) {
@@ -266,7 +250,7 @@ public class HttpFetcher {
         }
     }
 
-    private static Charset charsetOf(String contentType) {
+    static Charset charsetOf(String contentType) {
         if (contentType != null) {
             int idx = contentType.toLowerCase().indexOf("charset=");
             if (idx >= 0) {

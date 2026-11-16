@@ -137,8 +137,9 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   CORS), que VLC lit.
 - **« Error, something went wrong (ERR_RESPONSE_TOO_LARGE) »** à l'ajout d'une
   source : la playlist ou la réponse du portail dépasse ce que l'appareil peut
-  tenir en mémoire (environ 32 Mo sur un Stick de 1 Go) ; utilisez un export
-  plus petit (un pays, sans VOD) ou un portail Xtream.
+  tenir en mémoire (sur un Stick de 1 Go, environ 32 Mo pour une playlist et
+  64 Mo pour un catalogue Xtream ; 128 Mo pour un catalogue sur un téléphone) ;
+  utilisez un export plus petit (un pays, sans VOD) ou un portail Xtream.
 - **L'écran de veille démarre sur une liste** : voulu ; l'écran reste allumé
   pendant la lecture d'un flux.
 
