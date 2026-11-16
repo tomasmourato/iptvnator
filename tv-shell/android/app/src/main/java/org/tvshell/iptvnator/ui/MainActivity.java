@@ -273,7 +273,7 @@ public class MainActivity extends Activity {
                     armWatchdog();
                 }
                 // Never take the focus away from the error panel (an error page commits after onReceivedError).
-                if (errorPanel.getVisibility() != View.VISIBLE) view.requestFocus(View.FOCUS_DOWN);
+                if (errorPanel.getVisibility() != View.VISIBLE) focusPage();
             }
 
             /** The sandboxed renderer died (OOM abort or system kill). Unhandled, Chromium crashes or kills the app. */
@@ -406,7 +406,7 @@ public class MainActivity extends Activity {
         restoreUrl = null;
         webView.setVisibility(View.VISIBLE);
         webView.loadUrl(url);
-        webView.requestFocus(View.FOCUS_DOWN);
+        focusPage();
         armWatchdog();
     }
 
@@ -510,7 +510,18 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(loadRetry);
         splash.setVisibility(View.GONE);
         errorPanel.setVisibility(View.GONE);
-        if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
+        focusPage();
+    }
+
+    /**
+     * Gives the page the input focus. TV: FOCUS_DOWN, which lands on the page's first element for
+     * tv.js to take from there. Touch: window focus only, never a page element; on a phone that jump
+     * scrolled lists away from the top and left a focus outline where nobody had tapped.
+     */
+    void focusPage() {
+        if (webView == null) return;
+        if (!touchMode) webView.requestFocus(View.FOCUS_DOWN);
+        else if (!webView.hasFocus()) webView.requestFocus();
     }
 
     private void updateNativePlaybackAvailability() {
@@ -643,7 +654,7 @@ public class MainActivity extends Activity {
         updateNativePlaybackAvailability();
         deliverNativePlaybackResult();
         deliverNativePlaybackCheckpoint();
-        if (errorPanel.getVisibility() != View.VISIBLE) webView.requestFocus(View.FOCUS_DOWN);
+        if (errorPanel.getVisibility() != View.VISIBLE) focusPage();
         // Give a foreground startup a fresh ready budget.
         if (!pageReady && errorPanel.getVisibility() != View.VISIBLE) armWatchdog();
         if (SettingsActivity.dataCleared) {

@@ -239,48 +239,89 @@ row-30 scroll remain, and there's no touch entry to the shell settings.
 | TV emulator suites, served `index.html`, screens | identical to the baseline (0.000% on all 8 shots) |
 | Monorepo gates | as before (lint: only the upstream `ui-playback` failure) |
 
-## Where step 1 stopped (2026-11-15, end of session)
-- **Done:** commits 1–3 (split, touch mode and viewport, bars and insets,
-  keyboard, fullscreen orientation).
-- **Uncommitted work in progress for commit 4** ("skip the remote-control
-  focus layer in touch mode"), left in the working tree:
-  - `tv-shell/android/app/src/main/assets/tvshell/tv.js`: with
-    `data-tvshell-mode="touch"`, `init()` adds `tv-shell-touch` and skips the
-    style layer, the focus mirror, the D-pad key handler and the initial
-    focus (moved into `installRemoteControl()`). `scheduleRefocus()` is a
-    no-op, and `api.back()` skips its focus side effects. All bridge hooks
-    are kept.
-  - `tv-shell/tests/tv-touch.mjs`: a new Chromium test under Pixel 7
-    emulation against `node tv-shell/devserver/server.mjs --www dist/apps/web
-    --port 43332 --touch`. It passes all checks with the new `tv.js`; six
-    checks fail with the committed `tv.js`.
-- **Still to do for commit 4:**
-  - route `MainActivity`/`FullscreenController`/`ExternalOffer`
-    `webView.requestFocus(View.FOCUS_DOWN)` through a touch-aware
-    `focusPage()`. The row-30 list scroll doesn't reproduce in Chromium, so
-    it most likely comes from this native call;
-  - add a ring and list-at-top check to `android-touch.mjs`;
-  - re-run the TV Chromium suites (`tv-remote.mjs`, `tv-longlist.mjs`, which
-    now load the modified `tv.js`), the TV parity run and the phone/tablet
-    checks;
-  - add `tv-touch.mjs` to `.github/workflows/build-tv-shell-apk.yml`.
+### Commit 4: no remote-control focus layer in touch mode
+- **`tv.js`:** reads `data-tvshell-mode="touch"` from its own script tag.
+  - In touch mode it adds `tv-shell-touch` to `<html>` and installs neither
+    the remote-control stylesheet (ring, `cursor:none`, hidden scrollbars,
+    lite motion) nor the D-pad layer. That layer — focus mirror, key handler
+    and initial focus — now sits in `installRemoteControl()`.
+  - `scheduleRefocus()` is a no-op, and `api.back()` skips its focus side
+    effects.
+  - The bridge hooks stay: external player, copied URLs, playback errors,
+    keep-screen-on, Back, `onReady`.
+  - The `tv-shell` and `android-tv-shell` classes stay too, because the app
+    relies on them (backup export, grid windowing, overscroll).
+- **`MainActivity.focusPage()`:** replaces every
+  `webView.requestFocus(View.FOCUS_DOWN)`, including those in
+  `FullscreenController` and `ExternalOffer`.
+  - TV: the same call.
+  - Touch: plain window focus that never moves the page focus.
+- **New Chromium test `tests/tv-touch.mjs`:** Pixel 7 emulation against a
+  touch devserver (`--port 43332 --touch`). It checks:
+  - the page is the touch page, with no TV stylesheet and nothing focused on
+    load;
+  - the phone header has no `Ctrl+K` badge or shortcuts button;
+  - taps leave no ring;
+  - the list opens at channel 1;
+  - arrows don't drive a ring;
+  - Back still works through `__tvShell.back()`.
+
+  It's added to `.github/workflows/build-tv-shell-apk.yml` with a second dev
+  server. With the committed (commit 3) `tv.js`, six of its checks fail.
+- **`android-touch.mjs`:** checks that the playlist loads with no ring,
+  nothing made focusable and the list at channel 1, and that opening a
+  channel leaves no ring. It fails on the commit 3 APK.
+
+| Check | Result |
+|---|---|
+| `:backend:check` / `node --test` | 65 / 15 passed |
+| `tv-remote.mjs` / `tv-longlist.mjs` (Chromium, with the new `tv.js`) | 133 / 19 checks, every check line identical to the baseline, except video.js's generated element id in one message (`vjs_video_869` → `870`) |
+| `tv-touch.mjs` | 14/14 checks |
+| `android-touch.mjs` phone / tablet | 6/6 PASS on both |
+| Phone / tablet emulator suites | 1 / 3 / 1 / 4 PASS on both |
+| TV emulator suites, served `index.html` | identical to the baseline |
+| TV screens | see below: no difference from commit 4 |
+| Monorepo gates | as before (lint: only the upstream `ui-playback` failure) |
+
+**TV screens, a second day.** Today the first comparison with yesterday's
+baseline differed on the home shot: initial focus went to the Dashboard rail
+link instead of the playlist switcher. The **unmodified baseline APK does the
+same today**. Over 9 baseline runs and 5 commit 4 runs:
+- the home focus flips between the switcher and the rail link in both;
+- the settings page's initial focus flips once in each (baseline run 11,
+  commit 4 run 3).
+
+Every commit 4 run has a baseline run with identical facts and 0.000% pixel
+difference on all 8 shots. These two initial-focus spots are existing races
+in TV mode, not changes. From now on, compare TV screens against a baseline
+run captured the same day.
+
+## Where step 1 stopped (2026-11-16)
+- **Done:** commits 1–4. Items 1–6 of the checklist are fixed on the phone
+  and tablet. Item 7 (fullscreen in landscape) is in commit 3.
 - **Next:**
-  - commit 5 (launcher shortcut to the shell settings);
-  - commit 6 (README, `.changes/` note, final summary here);
-  - then one upstream rebase, and re-run the TV checks and the phone
-    checklist.
-- **Findings so far for the remaining checklist items:**
-  - item 8: a phone in landscape (864–914 CSS px, above the app's 640 px
-    breakpoint) still shows the desktop header with `Ctrl+K` and the
-    shortcuts button. That needs an apps/web follow-up, gated by
-    `(pointer: coarse)`;
-  - item 9: no change needed.
+  - **Commit 5:** a launcher shortcut to the shell settings (item 4).
+    - Add a static `res/xml/shortcuts.xml` whose intent is `MainActivity`
+      with `org.tvshell.iptvnator.action.OPEN_SETTINGS`, handled in
+      `onCreate`/`onNewIntent`. Add strings in English and French.
+    - Add a shortcut check to `android-touch.mjs`.
+  - **Commit 6:** the README (touch mode, the Interface setting, the
+    shortcut, `tv-touch.mjs`), a `.changes/` note and a final summary here.
+  - **Then:** one upstream rebase, and re-run the TV checks against a
+    same-day baseline capture plus the phone checklist.
+- **Open findings:**
+  - item 8: a phone in landscape (above the app's 640 px breakpoint) still
+    shows `Ctrl+K` and the shortcuts button. That needs an apps/web
+    follow-up;
+  - a minor one: the app's own hover style can stay on a row after a tap
+    (sticky hover). That's app styling, not the TV ring.
 - **To resume:**
-  - restart the AVDs: phone `LisBora_API37` (`emulator-5554`), TV
-    `TvShell_TV_API34` (`-port 5556`), tablet `TvShell_Tablet_API37`
-    (`-port 5558`);
-  - run `WWW=$PWD/dist/apps/web tv-shell/devserver/run-dev.sh` (mock on
-    43331) and the touch devserver above;
-  - build with JDK 17. The TV baseline shots and the screenshot and compare
-    scripts are in the session scratchpad, not the repo; if they're gone,
-    recapture the baseline from `8bc278232`.
+  - AVDs: phone `LisBora_API37` (`-port 5554`), tablet
+    `TvShell_Tablet_API37` (`-port 5558`), TV `TvShell_TV_API34`
+    (`-port 5556`). Run one at a time.
+  - Run `WWW=$PWD/dist/apps/web tv-shell/devserver/run-dev.sh` (mock on
+    43331) and `node tv-shell/devserver/server.mjs --www dist/apps/web
+    --port 43332 --touch`.
+  - Build with JDK 17. The baseline APK, screenshot scripts and shots live
+    in the session scratchpad. If they're gone, rebuild the baseline from
+    `8bc278232`.

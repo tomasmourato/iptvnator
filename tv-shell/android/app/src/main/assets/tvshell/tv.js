@@ -37,6 +37,10 @@
 
     var bridge = window.TvShell || null;
     var isAndroid = !!bridge && typeof bridge.postMessage === 'function';
+    // Touch interface (phones, tablets): the shell marks this script tag, and the remote-control
+    // layer (focus ring, D-pad navigation, focus restore) stays out of the way. The bridge hooks
+    // (external player, copied URLs, keep-screen-on, Back, readiness) work in both modes.
+    var touchMode = !!(document.currentScript && document.currentScript.getAttribute('data-tvshell-mode') === 'touch');
     var api = {};
     var lastRect = null; // where focus last was, for recycled/removed elements
     var lastMediaUrl = null;
@@ -953,9 +957,11 @@
             ev.__tvshell = true;
             target.dispatchEvent(ev);
             document.body.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true }));
-            setTimeout(function () {
-                if (!document.activeElement || document.activeElement === document.body) focusFirst();
-            }, 120);
+            if (!touchMode) {
+                setTimeout(function () {
+                    if (!document.activeElement || document.activeElement === document.body) focusFirst();
+                }, 120);
+            }
             return true;
         }
         if (document.fullscreenElement) {
@@ -965,7 +971,7 @@
         // Focus parked on the video: leave "player mode" first. The video is
         // itself a candidate, so it is excluded here; with nothing else to land
         // on (a bare player page) Back falls through to the page-level Back.
-        if (active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
+        if (!touchMode && active && (active.tagName === 'VIDEO' || active.tagName === 'AUDIO')) {
             active.blur();
             lastRect = rectOf(active);
             if (focusFirst(null, active)) return true;
@@ -1578,6 +1584,7 @@
 
     var refocusTimer = null;
     function scheduleRefocus() {
+        if (touchMode) return; // a tap puts focus where the user is; nothing to restore
         if (refocusTimer) clearTimeout(refocusTimer);
         refocusTimer = setTimeout(function () {
             refocusTimer = null;
@@ -1615,14 +1622,8 @@
     }
 
     // ------------------------------------------------------------- init
-    function init() {
-        document.documentElement.classList.add('tv-shell');
-        if (isAndroid) document.documentElement.classList.add('android-tv-shell');
-        document.body.classList.add('tv-shell');
-        installStyle();
-        installNetworkTracking();
-        installClipboardHook();
-        installHistoryTracking();
+    /** The D-pad layer: focus mirror, key handling and the initial focus (TV only). */
+    function installRemoteControl() {
         installFocusMirror();
         document.addEventListener('keydown', onKeyDown, true);
         // Keyups arrive in queue order: a keydown after one is a new press, however late it runs.
@@ -1639,7 +1640,19 @@
             var active = document.activeElement;
             if ((active && active !== document.body) || focusFirst() || attempts > 60) clearInterval(timer);
         }, 250);
-        log('ready (' + (isAndroid ? 'android' : 'browser emulation: F9=Back F10=Menu F8=Play/Pause F7=External') + ')');
+    }
+
+    function init() {
+        document.documentElement.classList.add('tv-shell');
+        if (isAndroid) document.documentElement.classList.add('android-tv-shell');
+        if (touchMode) document.documentElement.classList.add('tv-shell-touch');
+        document.body.classList.add('tv-shell');
+        if (!touchMode) installStyle();
+        installNetworkTracking();
+        installClipboardHook();
+        installHistoryTracking();
+        if (!touchMode) installRemoteControl();
+        log('ready (' + (touchMode ? 'touch' : isAndroid ? 'android' : 'browser emulation: F9=Back F10=Menu F8=Play/Pause F7=External') + ')');
         // Report ready only once Angular has rendered (main.ts removes
         // #initial-splash after the first paint). A bundle this engine cannot
         // parse never gets there, so the shell's watchdog shows the diagnostics
