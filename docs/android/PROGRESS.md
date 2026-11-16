@@ -324,25 +324,40 @@ run captured the same day.
 | `tv-remote.mjs` / `tv-longlist.mjs` | all checks passed (no `tv.js` change) |
 | Monorepo gates | as before (lint: only the upstream `ui-playback` failure) |
 
-## Where step 1 stopped (2026-11-16)
-- **Done:** commits 1–4. Items 1–6 of the checklist are fixed on the phone
-  and tablet. Item 7 (fullscreen in landscape) is in commit 3.
-- **Next:**
-  - **Commit 5:** a launcher shortcut to the shell settings (item 4).
-    - Add a static `res/xml/shortcuts.xml` whose intent is `MainActivity`
-      with `org.tvshell.iptvnator.action.OPEN_SETTINGS`, handled in
-      `onCreate`/`onNewIntent`. Add strings in English and French.
-    - Add a shortcut check to `android-touch.mjs`.
-  - **Commit 6:** the README (touch mode, the Interface setting, the
-    shortcut, `tv-touch.mjs`), a `.changes/` note and a final summary here.
-  - **Then:** one upstream rebase, and re-run the TV checks against a
-    same-day baseline capture plus the phone checklist.
+## Step 1 summary (2026-11-16)
+Touch mode is done in five code commits and this docs commit, all inside
+`tv-shell/`. The acceptance checklist against the nine findings:
+
+| # | Finding | Status | Where |
+|---|---|---|---|
+| 1 | pinned 1280 px viewport at 0.32 scale | fixed: device-width at scale 1, pinch-zoom | commit 2 |
+| 2 | reload on rotation | fixed: page and playback kept | commit 2 |
+| 3 | always immersive | fixed: bars visible, page between them, no prompt | commit 3 |
+| 4 | shell settings unreachable by touch | fixed: launcher shortcut | commit 5 |
+| 5 | TV focus rings, scroll restore | fixed: no D-pad layer in touch mode | commit 4 |
+| 6 | keyboard pans instead of resizing | fixed: IME inset padding, `adjustResize` | commit 3 |
+| 7 | fullscreen stays in portrait | fixed: sensor landscape (portrait video stays upright) | commit 3 |
+| 8 | desktop hints on a phone | portrait fixed by the app's own ≤640 px rules; landscape still shows them | open (apps/web) |
+| 9 | leanback manifest entries | kept on purpose (TV needs them); no install blocker | — |
+
+- **TV parity:** every app-code commit was checked on the Android TV AVD
+  against a baseline from the unmodified tree (same day from commit 4 on):
+  emulator suites, served `index.html` and 8 screens. The only differences
+  were two initial-focus races that the baseline APK shows too.
+- **Docs:** `tv-shell/README.md` and `README.fr.md` describe touch mode, the
+  *Interface* setting, the launcher shortcut, `tv-touch.mjs` and
+  `android-touch.mjs`. The release note is
+  `.changes/tv-shell-phone-tablet-mode.md`.
 - **Open findings:**
   - item 8: a phone in landscape (above the app's 640 px breakpoint) still
     shows `Ctrl+K` and the shortcuts button. That needs an apps/web
-    follow-up;
+    follow-up, for example gated by `(pointer: coarse)`;
   - a minor one: the app's own hover style can stay on a row after a tap
-    (sticky hover). That's app styling, not the TV ring.
+    (sticky hover). That's app styling, not the TV ring;
+  - the add-playlist step can take over 20 s on a cold emulator (26 s seen
+    with both the commit 4 and 5 APKs). The test now waits 60 s.
+- **Next:** one upstream rebase, then the TV checks against a same-day
+  baseline and the phone checklist again (results below once done).
 - **To resume:**
   - AVDs: phone `LisBora_API37` (`-port 5554`), tablet
     `TvShell_Tablet_API37` (`-port 5558`), TV `TvShell_TV_API34`
@@ -353,6 +368,8 @@ run captured the same day.
   - Build with JDK 17. The baseline APK, screenshot scripts and shots live
     in the session scratchpad. If they're gone, rebuild the baseline from
     `8bc278232`.
+  - In Git Bash, set `MSYS_NO_PATHCONV=1` before `adb shell … /sdcard/…`
+    commands, or the path is rewritten to the Git install folder.
 
 ## Fix: Xtream catalogues over 64 MiB (2026-11-16)
 
