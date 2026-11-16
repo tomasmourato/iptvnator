@@ -616,8 +616,7 @@ The first version expanded M3U's loading skeleton to full height too.
   phase is unchanged), and the list takes the full height once it renders.
   Cold loads: 2 of 3 within 1.1 s. During loading, 366 / 366 px; after,
   732 px.
-- Follow-up (upstream, not done): the deferred M3U list can wait 40 s+ for
-  idle on a slow device. A timer fallback on the `@defer` trigger would cap it.
+- Tracked under the follow-ups below.
 
 ### Results
 | Check | Result |
@@ -636,3 +635,12 @@ The first version expanded M3U's loading skeleton to full height too.
 
 The check APKs were built with JDK 21 (no JDK 17 on this machine any more;
 web assets only).
+
+### Next (follow-ups, one commit each)
+1. **Slow deferred M3U list render.** The M3U channel list is a bare
+   `@defer` block (on idle) in `video-player.component.html`. While its
+   skeleton shimmers, a slow device can go 40 s+ without an idle period, so
+   the list stays a skeleton (unfixed APK: 2 of 7 cold loads on the AVD).
+   Add a timer fallback to the trigger, e.g. `@defer (on idle; on timer(…))`,
+   and check the cold load on the AVD before and after. Upstream code; needs
+   a `.changes/` note.
