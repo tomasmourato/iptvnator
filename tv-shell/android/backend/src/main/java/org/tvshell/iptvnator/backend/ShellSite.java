@@ -129,7 +129,10 @@ public class ShellSite {
             return new Resource(200, MIME.get("txt"), notices, "no-store");
         }
         if (path.equals("/assets/app-config.js")) {
-            String js = "window.__IPTVNATOR_CONFIG__ = {\"BACKEND_URL\":" + Json.write(backendUrl) + "};\n";
+            Map<String, Object> config = Json.object();
+            config.put("BACKEND_URL", backendUrl);
+            config.put("SHELL", shellDescriptor(touchMode));
+            String js = "window.__IPTVNATOR_CONFIG__ = " + Json.write(config) + ";\n";
             return new Resource(200, MIME.get("js"), js.getBytes(UTF8), "no-store");
         }
         if (path.equals("/ngsw-worker.js") || path.equals("/ngsw.json") || path.equals("/safety-worker.js") || path.equals("/worker-basic.min.js")) {
@@ -146,6 +149,24 @@ public class ShellSite {
         }
         String cache = HASHED_FILE.matcher(path).matches() ? "public, max-age=31536000, immutable" : "no-store";
         return new Resource(200, mimeFor(relative), data, cache);
+    }
+
+    /**
+     * Capability descriptor the web app reads through RuntimeCapabilitiesService
+     * ({@code parseShellDescriptor}): the interface mode and the features this shell
+     * implements. Touch mode prefers the HTML5 player: its hls.js demuxes HEVC in
+     * MPEG-TS, which Video.js drops (sound, no picture). TV keeps the app default.
+     */
+    public static Map<String, Object> shellDescriptor(boolean touchMode) {
+        Map<String, Object> features = Json.object();
+        features.put("externalPlayer", Boolean.TRUE);
+        features.put("backupExport", Boolean.FALSE);
+        Map<String, Object> shell = Json.object();
+        shell.put("kind", "android");
+        shell.put("mode", touchMode ? "touch" : "tv");
+        shell.put("features", features);
+        if (touchMode) shell.put("preferredPlayer", "html5");
+        return shell;
     }
 
     private static Resource text(int status, String message) {

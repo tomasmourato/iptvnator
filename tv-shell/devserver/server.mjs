@@ -316,7 +316,7 @@ export function serveStatic(res, url, www = WWW) {
     }
     if (pathname === '/assets/app-config.js') {
         res.writeHead(200, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-store' });
-        return res.end(`window.__IPTVNATOR_CONFIG__ = {"BACKEND_URL":"/api"};\n`);
+        return res.end(appConfigScript(TOUCH));
     }
     if (pathname === '/ngsw-worker.js' || pathname === '/ngsw.json') {
         // The service worker is deliberately disabled in the shell: the
@@ -343,6 +343,20 @@ export function serveStatic(res, url, www = WWW) {
     }
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(readFileSync(actual));
+}
+
+/**
+ * Same `assets/app-config.js` as ShellSite.java: the backend URL and the shell
+ * capability descriptor the web app reads through RuntimeCapabilitiesService.
+ */
+export function appConfigScript(touch = false) {
+    const shell = {
+        kind: 'android',
+        mode: touch ? 'touch' : 'tv',
+        features: { externalPlayer: true, backupExport: false },
+        ...(touch ? { preferredPlayer: 'html5' } : {}),
+    };
+    return `window.__IPTVNATOR_CONFIG__ = ${JSON.stringify({ BACKEND_URL: '/api', SHELL: shell })};\n`;
 }
 
 /**

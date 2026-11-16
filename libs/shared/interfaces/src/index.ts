@@ -66,6 +66,7 @@ export * from './lib/recording-program-overlap.util';
 export * from './lib/renderer-reload-route.util';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
+export * from './lib/shell-descriptor';
 export * from './lib/stalker-auth-failure.util';
 export * from './lib/stalker-cmd-encoding.util';
 export * from './lib/stalker-portal-actions.enum';

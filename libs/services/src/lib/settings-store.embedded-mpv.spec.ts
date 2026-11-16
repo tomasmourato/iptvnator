@@ -10,6 +10,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { SettingsStore } from './settings-store.service';
 
 /** What the main process answers when the Linux `mpv` probe finds nothing. */
@@ -64,6 +65,7 @@ describe('SettingsStore saved Embedded MPV selection', () => {
         injector = Injector.create({
             providers: [
                 EpgPreferencesService,
+                RuntimeCapabilitiesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 { provide: StorageMap, useValue: storage },

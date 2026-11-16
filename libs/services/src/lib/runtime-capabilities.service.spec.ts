@@ -254,6 +254,41 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpgProgramSearch).toBe(false);
     });
 
+    describe('native shell descriptor', () => {
+        const originalConfig = window.__IPTVNATOR_CONFIG__;
+
+        afterEach(() => {
+            window.__IPTVNATOR_CONFIG__ = originalConfig;
+        });
+
+        it('reports no shell in browsers and Electron', () => {
+            window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: '/api' };
+            const service = new RuntimeCapabilitiesService();
+
+            expect(service.shell).toBeNull();
+            expect(service.hasShellFeature('externalPlayer')).toBe(false);
+        });
+
+        it('reads the shell mode, features and preferred player', () => {
+            window.__IPTVNATOR_CONFIG__ = {
+                BACKEND_URL: '/api',
+                SHELL: {
+                    kind: 'android',
+                    mode: 'touch',
+                    features: { externalPlayer: true, backupExport: false },
+                    preferredPlayer: 'html5',
+                },
+            };
+            const service = new RuntimeCapabilitiesService();
+
+            expect(service.shell?.mode).toBe('touch');
+            expect(service.shell?.preferredPlayer).toBe('html5');
+            expect(service.hasShellFeature('externalPlayer')).toBe(true);
+            expect(service.hasShellFeature('backupExport')).toBe(false);
+            expect(service.isPwa).toBe(true);
+        });
+    });
+
     it('reads the bridge dynamically so tests and late preload setup stay accurate', () => {
         testWindow.electron = undefined;
         const service = new RuntimeCapabilitiesService();

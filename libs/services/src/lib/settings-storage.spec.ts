@@ -6,6 +6,7 @@ import { EpgPreferencesService } from './epg-preferences.service';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { writeSettings, writeTransferredTmdbKey } from './settings-storage';
 import { DEFAULT_SETTINGS } from './settings-store.defaults';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { SettingsStore } from './settings-store.service';
 
 const apiKey = 'synthetic-received-key';
@@ -49,6 +50,7 @@ describe('Settings storage', () => {
     async function loadStore() {
         injector = Injector.create({
             providers: [
+                RuntimeCapabilitiesService,
                 SettingsStore,
                 EpgPreferencesService,
                 {

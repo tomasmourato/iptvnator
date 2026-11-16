@@ -4,7 +4,7 @@ import { createServer, get } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { handleRequest, injectTvLayer, serveStatic } from '../devserver/server.mjs';
+import { appConfigScript, handleRequest, injectTvLayer, serveStatic } from '../devserver/server.mjs';
 
 test('static responses stay inside the web root, including through symlinks', async () => {
     const fixture = mkdtempSync(join(tmpdir(), 'iptvnator-static-test-'));
@@ -73,4 +73,22 @@ test('the touch transformation keeps the device width and tells tv.js', () => {
     assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
     assert.doesNotMatch(html, /maximum-scale|minimum-scale|width=1280/);
     assert.match(html, /<script src="tvshell\/tv.js" data-tvshell-mode="touch" defer><\/script>\n {8}<script src="assets\/app-config.js"/);
+});
+
+test('app-config.js carries the shell descriptor ShellSite.java serves', () => {
+    const read = (script) => {
+        const sandbox = {};
+        new Function('window', script)(sandbox);
+        return sandbox.__IPTVNATOR_CONFIG__;
+    };
+    assert.deepEqual(read(appConfigScript(false)), {
+        BACKEND_URL: '/api',
+        SHELL: { kind: 'android', mode: 'tv', features: { externalPlayer: true, backupExport: false } },
+    });
+    assert.deepEqual(read(appConfigScript(true)).SHELL, {
+        kind: 'android',
+        mode: 'touch',
+        features: { externalPlayer: true, backupExport: false },
+        preferredPlayer: 'html5',
+    });
 });
