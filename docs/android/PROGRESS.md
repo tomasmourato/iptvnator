@@ -542,7 +542,7 @@ play in another player.
 | `node --test tv-shell/tests/*.test.mjs` | 16 passed (+1: descriptor) |
 | `tv-remote.mjs` / `tv-longlist.mjs` (Chromium, devserver, TV) | all checks passed; TV descriptor has no `preferredPlayer` |
 | `android-bridge` / `-protocol-discovery` / `-background-media` (TV AVD, new APK) | 1 / 1 / 4 PASS, same as the TV baseline |
-| Pixel 10, real provider | pending: HEVC channels should play with the default player; open-GOP channels should show the decode diagnostic and the external-player offer |
+| Pixel 10, real provider A (`adb install -r`, data kept) | PASS. HEVC channels play with the HTML5 player. With Video.js selected, the HEVC channel shows the unsupported-codec diagnostic and the external-player offer instead of loading forever. The open-GOP channel shows the decode diagnostic and the external-player offer. In VLC with default settings (hardware decoding) the open-GOP channel plays sound over a black screen; with VLC's hardware acceleration disabled (software decoding) it plays normally. No other player tested |
 
 ### Phase 2 (later, after roadmap step 2, security): native Media3 player
 The only in-app fix for open-GOP H.264 (and for AC3/E-AC3 and raw `.ts`).
@@ -554,6 +554,13 @@ A separate plan, not started:
   optionally route there automatically after a decode error;
 - the URL arrives through the existing `onPlaybackError` bridge; logs go
   through `DiagnosticRedactor`;
+- **verify on the exact open-GOP stream first.** The phone's hardware
+  decoder (MediaCodec) can't start it, and software decoding can (VLC: sound
+  and black screen with hardware decoding, normal playback in software).
+  Media3 uses MediaCodec by default, so it will likely need a
+  software-decoder fallback when the hardware decoder fails, e.g. the Media3
+  FFmpeg decoder extension (more APK size, and a native build or a
+  prebuilt);
 - trade-off: no app overlay, EPG or zapping inside it unless bridged later.
   Electron and PWA are unaffected.
 
