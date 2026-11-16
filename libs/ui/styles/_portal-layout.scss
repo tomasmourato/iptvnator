@@ -203,7 +203,8 @@
     // Side by side, the 400px channel list leaves nothing for the player on a
     // phone, so the two stack instead. The width needs `!important` because
     // ResizableDirective writes the persisted desktop width inline; dragging
-    // is meaningless at full width, so the handle goes too.
+    // is meaningless at full width, so the handle goes too. The player pane
+    // only joins the stack once something plays (see the idle rule below).
     @media (max-width: 640px) {
         :host {
             flex-direction: column;
@@ -236,6 +237,28 @@
 
         .content-container {
             flex: 1 1 auto;
+        }
+
+        // Nothing playing: the content pane holds only the "select a
+        // channel" placeholder, so the list takes the whole body instead of
+        // sharing it. `max-height` needs `!important` to beat the caps of
+        // the consumers' own phone rules (M3U's 50vh drawer). A collapsed
+        // list keeps its restore state, and a route without a list (no
+        // category picked yet) never matches. M3U defers its list until the
+        // browser is idle and shows a skeleton until then; that skeleton
+        // keeps its old share, because a full screen of shimmer repaints
+        // every frame and on a slow phone can hold off the idle moment the
+        // list is waiting for.
+        $idle-list: '.sidebar:not(.sidebar-collapsed):not(:has(> app-channel-list-loading-state))';
+
+        #{$idle-list}:has(+ .content-container > app-portal-empty-state) {
+            flex: 1 1 auto;
+            height: auto;
+            max-height: none !important;
+        }
+
+        #{$idle-list} + .content-container:has(> app-portal-empty-state) {
+            display: none;
         }
 
         // Inside that container the guide is `flex: 0 0 <basis>` while the

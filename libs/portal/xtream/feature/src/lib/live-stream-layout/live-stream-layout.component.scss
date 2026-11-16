@@ -150,6 +150,13 @@ app-grid-list.live-all-items-grid {
 // paginator's intrinsic width alone exceeds a phone, which crushed the count
 // to zero width and left the two drawn on top of each other.
 @media (max-width: 640px) {
+    // The channel list's own size was a viewport-relative min-height that
+    // stood taller than this cap (see styles.scss); without it the list
+    // shrinks to its floor under the player, so state its share here.
+    .sidebar {
+        height: 42vh;
+    }
+
     .category-content-header {
         padding-inline: 12px;
     }

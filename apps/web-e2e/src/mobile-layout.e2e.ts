@@ -1,6 +1,7 @@
 import { devices, type Locator, type Page } from '@playwright/test';
 import { expect, test } from './pwa-mock.fixture';
 import {
+    addStalkerPortal,
     addXtreamPortal,
     interceptPwaProviderRequests,
 } from './sources-pwa.helpers';
@@ -25,11 +26,15 @@ import {
  *      On a portal list, the header's history Back yields to the toggle.
  *   5. On a 640x360 landscape phone the live route keeps the channel
  *      sidebar at least 72px tall and the player container inside the
- *      viewport.
+ *      viewport while a channel plays.
  *   6. The phone dashboard hero: the slide covers the lower part of the
  *      art, the art fades on under it into the first rail, the banner keeps
  *      one height across slides, and the slide's action stays reachable on
  *      portrait iPhones, a short landscape phone and an installed PWA.
+ *   7. With nothing playing, a stacked live channel list (Xtream, Stalker,
+ *      M3U) takes the whole pane instead of sharing it with the "select a
+ *      channel" placeholder, and its scroll viewport stays inside the list
+ *      so the last row can be reached, before and during playback.
  *
  * Conventions: docs/architecture/iptvnator-ui-guidelines.md, "Phone Layout"
  * (640px breakpoint, resizable rails stack full-width via `!important`).
@@ -132,6 +137,71 @@ async function phoneHeroGeometry(page: Page) {
             heroHeight: box.height,
         };
     });
+}
+
+/**
+ * With nothing playing the content pane held only the "select a channel"
+ * placeholder, yet took the lower half of a phone and capped the list above
+ * it. Now the list owns the pane: the placeholder pane is gone and the list
+ * ends where the route content ends.
+ */
+async function expectIdleListFillsPane(
+    page: Page,
+    layout: Locator
+): Promise<void> {
+    const sidebar = layout.locator('.sidebar');
+    await expect(sidebar).toBeVisible();
+    await expect(layout.locator('.content-container')).toBeHidden();
+    const pane = await boxOf(page.locator('main.workspace-content'));
+    await expect
+        .poll(async () => {
+            const box = await boxOf(sidebar);
+            return Math.abs(box.y + box.height - (pane.y + pane.height));
+        })
+        .toBeLessThanOrEqual(1);
+}
+
+/**
+ * A viewport-relative min-height once made the Xtream scroll viewport
+ * taller than the capped phone list that clips it: the viewport had nothing
+ * to scroll and the rows past the clip could not be reached. Scrolled to its
+ * end, the last row has to end inside the list.
+ */
+async function expectLastRowReachable(list: Locator): Promise<void> {
+    await list
+        .locator('cdk-virtual-scroll-viewport')
+        .evaluate((viewport) => (viewport.scrollTop = viewport.scrollHeight));
+    await expect
+        .poll(() =>
+            list.evaluate((host) => {
+                const rows = host.querySelectorAll(
+                    'cdk-virtual-scroll-viewport [data-test-id="channel-item"]'
+                );
+                const last = rows[rows.length - 1];
+                if (!last) return Number.POSITIVE_INFINITY;
+                return (
+                    last.getBoundingClientRect().bottom -
+                    host.getBoundingClientRect().bottom
+                );
+            })
+        )
+        .toBeLessThanOrEqual(1);
+}
+
+/** Playing: both panes show, the list keeps its floor, the player fits. */
+async function expectPlayingSplit(
+    layout: Locator,
+    viewportHeight: number
+): Promise<void> {
+    const content = layout.locator('.content-container');
+    await expect(content).toBeVisible();
+    await expect(content.locator('app-web-player-view')).toBeVisible();
+    const sidebarBox = await boxOf(layout.locator('.sidebar'));
+    expect(sidebarBox.height).toBeGreaterThanOrEqual(71);
+    const contentBox = await boxOf(content);
+    expect(contentBox.y + contentBox.height).toBeLessThanOrEqual(
+        viewportHeight + 1
+    );
 }
 
 async function favoriteFirstMovies(page: Page, count: number): Promise<void> {
@@ -453,22 +523,105 @@ test.describe('xtream portal routes on a phone', () => {
             .poll(async () => (await sidebar.boundingBox())?.width ?? 0)
             .toBeGreaterThanOrEqual(LANDSCAPE_PHONE.width - 2);
 
+        // Nothing plays yet, so the list owns the whole pane.
+        const layout = page.locator('app-live-stream-layout');
+        await expectIdleListFillsPane(page, layout);
+
+        await layout.locator('[data-test-id="channel-item"]').first().click();
+
         // Before the follow-up fix in #1326 the player's 240px floor drove
         // the still-expanded sidebar to zero height on a 640x360 screen,
-        // leaving no way to pick another channel.
-        const sidebarBox = await boxOf(sidebar);
-        expect(sidebarBox.height).toBeGreaterThanOrEqual(71);
-
-        // ...and pushed the layout past the viewport. The player container
-        // has to end inside it.
-        const contentBox = await boxOf(
-            page.locator('app-live-stream-layout .content-container')
-        );
-        expect(contentBox.y + contentBox.height).toBeLessThanOrEqual(
-            LANDSCAPE_PHONE.height + 1
-        );
+        // leaving no way to pick another channel, and pushed the layout past
+        // the viewport. The player container has to end inside it.
+        await expectPlayingSplit(layout, LANDSCAPE_PHONE.height);
+        const contentBox = await boxOf(layout.locator('.content-container'));
         expect(contentBox.width).toBeLessThanOrEqual(LANDSCAPE_PHONE.width);
 
         await expectNoHorizontalOverflow(page, LANDSCAPE_PHONE.width);
+    });
+
+    test('@mobile @xtream portrait live list fills the pane and scrolls until a channel plays', async ({
+        page,
+    }) => {
+        // As above: pick the category at desktop width, then shrink.
+        await page.goto(page.url().replace(/\/vod.*$/, '/live'));
+        await page.locator('.context-panel .category-item').first().click();
+        const layout = page.locator('app-live-stream-layout');
+        const list = layout.locator('.sidebar app-portal-channels-list');
+        await expect(
+            list.locator('[data-test-id="channel-item"]').first()
+        ).toBeVisible();
+
+        await page.setViewportSize(PHONE);
+        await expectIdleListFillsPane(page, layout);
+        await expectLastRowReachable(list);
+
+        await list.locator('[data-test-id="channel-item"]').first().click();
+        await expectPlayingSplit(layout, PHONE.height);
+        await expectLastRowReachable(list);
+        await expectNoHorizontalOverflow(page, PHONE.width);
+    });
+});
+
+test.describe('m3u and stalker live lists on a phone', () => {
+    test.beforeEach(async ({ page }) => {
+        await interceptPwaProviderRequests(page);
+        await page.goto('/');
+    });
+
+    test('@mobile @m3u channel list fills the pane until a channel plays', async ({
+        page,
+    }) => {
+        // Streams are never fetched: the player's panel is what is measured.
+        await page.route('https://m3u-layout.fixture.invalid/**', (route) =>
+            route.abort()
+        );
+        await page
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByRole('radio', { name: /Raw m3u text/ }).click();
+        const entries = [1, 2, 3].map(
+            (n) =>
+                `#EXTINF:-1,Layout Channel ${n}\n` +
+                `https://m3u-layout.fixture.invalid/${n}.m3u8`
+        );
+        await dialog
+            .locator('textarea')
+            .fill(['#EXTM3U', ...entries].join('\n'));
+        await dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click();
+        const layout = page.locator('app-video-player');
+        const channel = layout.locator('[data-test-id="channel-item"]').first();
+        await expect(channel).toBeVisible({ timeout: 15_000 });
+
+        await page.setViewportSize(PHONE);
+        await expectIdleListFillsPane(page, layout);
+
+        await channel.click();
+        await expectPlayingSplit(layout, PHONE.height);
+        await expectNoHorizontalOverflow(page, PHONE.width);
+    });
+
+    test('@mobile @stalker live channel list fills the pane until a channel plays', async ({
+        page,
+        pwaMocks,
+    }) => {
+        await addStalkerPortal(page, 'Mobile Layout Stalker', pwaMocks);
+        await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+        await page.waitForURL(/stalker.*itv/);
+        // The first entry is the all-channels overview, which has no list.
+        await page.locator('.context-panel .category-item').nth(1).click();
+        const layout = page.locator('app-stalker-live-stream-layout');
+        const channel = layout.locator('[data-test-id="channel-item"]').first();
+        await expect(channel).toBeVisible();
+
+        await page.setViewportSize(PHONE);
+        await expectIdleListFillsPane(page, layout);
+
+        await channel.click();
+        await expectPlayingSplit(layout, PHONE.height);
+        await expectNoHorizontalOverflow(page, PHONE.width);
     });
 });
