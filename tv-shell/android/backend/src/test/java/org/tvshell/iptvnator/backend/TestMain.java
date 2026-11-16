@@ -32,7 +32,7 @@ public final class TestMain {
     public static void main(String[] args) throws Exception {
         Class<?>[] suites = {
             ProtocolDiscoveryTest.class, DiagnosticRedactorTest.class, JsonTest.class, M3uParserTest.class, KodiPropTest.class, PortalUrlsTest.class,
-            StalkerIdentityTest.class, WebBackendTest.class, PlaylistRecordTest.class, ShellSiteTest.class, HttpFetcherTest.class,
+            StalkerIdentityTest.class, WebBackendTest.class, PlaylistRecordTest.class, ShellSiteTest.class, HttpFetcherTest.class, ProviderPayloadTest.class,
             InterfaceModeTest.class
         };
         int passed = 0;

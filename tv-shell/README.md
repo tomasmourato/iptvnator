@@ -258,12 +258,17 @@ from a channel goes through its available row actions on the way to the preview.
   crashes, or deaths while the app is in front, within a minute show the error
   panel instead of looping. The system reclaiming the hidden renderer while VLC
   or another app is in front does not count.
-- Memory on a 1 GB device: provider answers are capped at an eighth of the app's
-  heap (64 MB at most, about 32 MB on a Fire TV Stick Lite) and refused before
-  download when the declared size is larger (`ERR_RESPONSE_TOO_LARGE`). Xtream
-  and Stalker JSON answers are validated and passed through verbatim instead
-  of being rebuilt as maps; responses are encoded straight to UTF-8 in chunks
-  (no doubling buffer, no final copy) and served from them. An M3U import is
+- Memory on a 1 GB device: Xtream and Stalker answers are kept once, as the
+  bytes received, in chunks: valid UTF-8 JSON is checked in place and served
+  from those same chunks inside the `{action, payload}` answer, never decoded,
+  rebuilt or copied. They are capped at a quarter of the app's heap (256 MB at
+  most: 128 MB on a 512 MB phone heap, about 64 MB on a Fire TV Stick Lite),
+  enough for the 80 MB catalogues some panels send. Playlists, and portal
+  answers that are not such JSON, are decoded and capped at an eighth of the
+  heap (64 MB at most, about 32 MB on the Stick). Either cap refuses the answer
+  before download when the declared size is larger (`ERR_RESPONSE_TOO_LARGE`).
+  Responses are encoded straight to UTF-8 in chunks (no doubling buffer, no
+  final copy) and served from them. An M3U import is
   parsed and written in one pass: the parser walks the text without splitting
   it into a second copy and hands over each channel as soon as it is complete,
   which `/api/parse` decorates (id, DRM) and writes out at once, so the heap
@@ -301,6 +306,10 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emu
 
 # native background playback: keep the mock provider running for the synthetic clip
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
+
+# oversized Xtream catalogues: starts its own mock provider with --large-catalog
+# (~90 MiB synthetic get_vod_streams and get_series) and clears the app's data
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-large-catalog.mjs emulator-5554
 # the real Java backend on the JDK, without Android (same classes as the APK)
 cd tv-shell/android && ./gradlew :backend:check
 # regenerate the parser fixtures after an iptv-playlist-parser upgrade
@@ -328,8 +337,9 @@ tv-shell/
   and banner; `versionName` is bumped by hand.
 - Only `http`/`https` provider URLs; no EPG, downloads or embedded MPV (PWA
   limits).
-- Playlists and portal answers larger than an eighth of the app's memory (about
-  32 MB on a 1 GB stick) are refused with `ERR_RESPONSE_TOO_LARGE`.
+- Playlists larger than an eighth of the app's memory (about 32 MB on a 1 GB
+  stick) and portal answers larger than a quarter of it (about 64 MB there,
+  128 MB on a phone) are refused with `ERR_RESPONSE_TOO_LARGE`.
 - The loopback server is reachable by other apps on the device (see the
   security model).
 

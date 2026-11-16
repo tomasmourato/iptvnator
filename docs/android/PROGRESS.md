@@ -325,3 +325,74 @@ run captured the same day.
   - Build with JDK 17. The baseline APK, screenshot scripts and shots live
     in the session scratchpad. If they're gone, rebuild the baseline from
     `8bc278232`.
+
+## Fix: Xtream catalogues over 64 MiB (2026-11-16)
+
+Found in real-world testing on a Pixel 10 (debug APK, 512 MB largeHeap). Two
+real Xtream providers that work in another player failed on Movies:
+provider A showed "Portal unavailable", provider B "Something went wrong".
+Retry did not help, and the Live and Series tabs showed the same error.
+
+### Diagnosis
+- Captured redacted logcat and a WebView CDP trace (hosts, credentials and
+  query values stripped as they were recorded) while Retry was tapped on each.
+- One cause: the embedded backend refused one catalogue per provider with
+  `ERR_RESPONSE_TOO_LARGE`.
+  - A: `get_vod_streams` was 84.0 MiB.
+  - B: `get_series` was 74.2 MiB (its 52.3 MiB VOD loaded).
+- The cap was `min(64 MiB, heap/8)`, because the old path held a body three to
+  five times over: a doubling buffer, a String, then a re-encoded copy.
+- Ruled out: account checks (Active), category lists and live streams (up to
+  19 MB) all succeeded. No TLS, cleartext, User-Agent or timeout errors; the
+  slowest request took 12 s against a 30 s timeout.
+- The Xtream import is all-or-nothing, so one oversized catalogue blocked
+  every tab.
+
+### Fix (`tv-shell/` backend only)
+- `HttpFetcher.getRaw` reads the answer straight into `Utf8Sink` chunks, with
+  no doubling buffer and no String.
+- `JsonBytes` checks the JSON and the UTF-8 in place. It follows
+  `Json.validate` plus `payloadOf`'s trim and BOM rules.
+- `ProviderPayload` writes `{"action":…,"payload":` then the provider's own
+  chunks by reference, then `}`. The answer is held once, from the socket to
+  the WebView.
+- Fallback: another charset, lenient JSON or plain text goes through the old
+  decoding path and its old cap. Both paths produce byte-identical output.
+- New pass-through cap for Xtream and Stalker: `min(256 MiB, heap/4)`. That is
+  128 MiB on the phone, 144 MiB on the API 37 AVD and about 64 MiB on a 1 GB
+  stick. `/parse` keeps `heap/8`.
+- Mock provider: `--large-catalog [MiB]` (`devserver/large-catalog.mjs`)
+  streams synthetic ~90 MiB `get_vod_streams` and `get_series` with non-ASCII
+  names.
+- New emulator check: `tests/android-large-catalog.mjs`.
+
+### Results
+| Check | Result |
+|---|---|
+| `:backend:check` | 71 passed (+6). New: envelope byte-identical to the decoding path over 28 bodies split at 1–4096 bytes; malformed UTF-8 and hostile nesting fall back; gzip and chunked raw reads; a child JVM at `-Xmx128m` relays a 30 MB catalogue (twice the old cap, 90% of the new one; 33 MB at 98% also passed) |
+| `node --test` | 15 passed |
+| `android-large-catalog.mjs`, phone AVD, **before** APK | FAIL: `get_vod_streams answered 95 bytes` (the `ERR_RESPONSE_TOO_LARGE` body) |
+| `android-large-catalog.mjs`, phone AVD, fixed APK | PASS: 220 605 movies and 199 608 series (91 MiB each), all three tabs list items, no OOM |
+| Phone AVD suites (bridge / protocol-discovery / file-input / background-media / touch) | 1 / 1 / 3 / 4 / 6 PASS |
+| Pixel 10, real providers (`adb install -r`, data kept) | A: `get_vod_streams` 88 080 800 bytes in 14 s. B: `get_series` 77 821 992 bytes in 7 s. All six tabs list content, no OOM in logcat. Tested before `EncodedBody` and `RawResult` moved to their own files (a verbatim move to keep `HttpFetcher` under 300 lines); the final build passed the JVM suite and the AVD check again |
+| Monorepo gates | release-notes, test:frontend, typecheck:web, build:frontend:pwa pass; lint fails only on the pre-existing upstream `ui-playback` max-lines (#2211) |
+
+Harness note: `android-touch.mjs` run right after `android-background-media.mjs`
+fails at "synthetic playlist did not load". The **before APK fails the same
+way**, and it passes when run on its own, so it's an existing ordering
+problem between the two suites. Run android-touch first, or on its own.
+
+### Next (follow-ups, one commit each)
+1. **Readable Android error for oversized answers.** The backend's code
+   `ERR_RESPONSE_TOO_LARGE` isn't one the UI maps (it knows
+   `PROVIDER_RESPONSE_TOO_LARGE`), so it falls back to "Something went
+   wrong". The UI's existing too-large text tells users to raise a Docker env
+   var, which is wrong on Android. Needs an Android-appropriate message and a
+   `.changes/` note.
+2. **"Portal unavailable" while the account is Active.** On provider A the
+   label came from `resolveInitBlockReason(portalStatus)`, with the store's
+   status still `'unavailable'` (its initial value in `with-portal.feature.ts`)
+   although `get_account_info` answered Active. Cause not yet found; frontend,
+   upstream code.
+3. **Partial import.** One failed catalogue blocks every tab, including Live
+   that loaded. Upstream behaviour in `with-content.feature.ts`.
