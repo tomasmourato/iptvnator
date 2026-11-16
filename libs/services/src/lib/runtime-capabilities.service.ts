@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core';
-import { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeApi,
+    type ShellDescriptor,
+    type ShellFeatures,
+    parseShellDescriptor,
+} from '@iptvnator/shared/interfaces';
 
 export type RuntimeEnvironment = 'electron' | 'pwa';
 
@@ -399,6 +404,20 @@ export class RuntimeCapabilitiesService {
             this.supportsXtreamSqliteDataSource ||
             this.hasElectronMethod('xtreamRequest')
         );
+    }
+
+    /**
+     * Descriptor of the native shell hosting the web app (the Android
+     * tv-shell), or null in browsers and Electron. Read on every access, like
+     * the Electron bridge, so late configuration stays accurate.
+     */
+    get shell(): ShellDescriptor | null {
+        if (typeof window === 'undefined') return null;
+        return parseShellDescriptor(window.__IPTVNATOR_CONFIG__?.SHELL);
+    }
+
+    hasShellFeature(feature: keyof ShellFeatures): boolean {
+        return this.shell?.features[feature] === true;
     }
 
     private hasElectronMethod(methodName: string): boolean {

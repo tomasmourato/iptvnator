@@ -70,6 +70,8 @@ public class ShellSiteTest {
         int tv = html.indexOf("tvshell/tv.js");
         assertTrue("tv.js still before config", tv > 0 && tv < html.indexOf("assets/app-config.js"));
         assertEquals("spa fallback in touch mode", html, new String(s.serve("/workspace/sources").body, UTF8));
+        assertTrue("touch descriptor prefers the HTML5 player", new String(s.serve("/assets/app-config.js").body, UTF8)
+            .contains("\"SHELL\":{\"kind\":\"android\",\"mode\":\"touch\",\"features\":{\"externalPlayer\":true,\"backupExport\":false},\"preferredPlayer\":\"html5\"}"));
         s.setTouchMode(false);
         String tvHtml = new String(s.serve("/").body, UTF8);
         assertTrue("back to the TV viewport", tvHtml.contains("content=\"width=1280, initial-scale=0.3211, minimum-scale=0.3211, maximum-scale=0.3211\""));
@@ -97,7 +99,9 @@ public class ShellSiteTest {
         assertEquals("font mime", "font/woff2", font.contentType);
         assertEquals("media immutable", "public, max-age=31536000, immutable", font.cacheControl);
         ShellSite.Resource config = s.serve("/assets/app-config.js");
-        assertEquals("config", "window.__IPTVNATOR_CONFIG__ = {\"BACKEND_URL\":\"/api\"};\n", new String(config.body, UTF8));
+        assertEquals("config", "window.__IPTVNATOR_CONFIG__ = {\"BACKEND_URL\":\"/api\","
+            + "\"SHELL\":{\"kind\":\"android\",\"mode\":\"tv\",\"features\":{\"externalPlayer\":true,\"backupExport\":false}}};\n",
+            new String(config.body, UTF8));
         ShellSite.Resource tv = s.serve("/tvshell/tv.js");
         assertEquals("tv layer", "/* tv */", new String(tv.body, UTF8));
         assertEquals("sw blocked", 404, Integer.valueOf(s.serve("/ngsw-worker.js").status));

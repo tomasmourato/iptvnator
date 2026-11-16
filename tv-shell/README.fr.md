@@ -54,7 +54,9 @@ téléphone et tablette de l'app s'appliquent et le zoom à deux doigts fonction
 Pas d'anneau de focus ni de couche D-pad ; les barres système restent visibles,
 le clavier redimensionne la page, une rotation garde la page et la lecture, et
 la vidéo en plein écran passe en paysage. Le réglage *Interface* force le mode
-TV ou tactile.
+TV ou tactile. Tant que l'utilisateur n'a pas choisi de lecteur, le mode tactile
+utilise le lecteur HTML5 : son hls.js lit le HEVC en MPEG-TS, que Video.js
+abandonne (le son sans l'image).
 
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)
 

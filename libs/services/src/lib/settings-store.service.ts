@@ -6,6 +6,7 @@ import {
 import { resolveDefaultOnSettings } from './settings-opt-out.util';
 import { computed, DestroyRef, inject } from '@angular/core';
 import { EpgPreferencesService } from './epg-preferences.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import {
     getState,
     patchState,
@@ -65,6 +66,7 @@ export const SettingsStore = signalStore(
     withMethods((store, storage = inject(StorageMap)) => {
         const epgSources = inject(EpgSourceSettingsService);
         const epgPreferences = inject(EpgPreferencesService);
+        const runtime = inject(RuntimeCapabilitiesService);
         let settingsLoadPromise: Promise<void> | undefined;
         let tmdbKeyRevision = 0;
         let epgSaveRevision = 0;
@@ -82,10 +84,16 @@ export const SettingsStore = signalStore(
                         storage.get(STORE_KEY.Settings)
                     );
                     patchState(store, { storageFailure: null });
+                    // A native shell may prefer a built-in player until the
+                    // user picks one; a saved choice always wins.
+                    const shellPlayer = runtime.shell?.preferredPlayer;
+                    if (shellPlayer && !(stored as Partial<Settings>)?.player)
+                        patchState(store, { player: shellPlayer });
                     if (stored) {
                         const storedSettings = stored as Partial<Settings>;
                         patchState(store, {
                             ...DEFAULT_SETTINGS,
+                            player: store.player(),
                             ...storedSettings,
                             epgUrl: normalizeEpgSourceUrls(
                                 storedSettings.epgUrl

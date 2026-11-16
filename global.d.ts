@@ -17,6 +17,8 @@ declare global {
     interface Window {
         __IPTVNATOR_CONFIG__?: {
             BACKEND_URL?: string;
+            /** Native shell descriptor; parse with `parseShellDescriptor`. */
+            SHELL?: unknown;
         };
         electron: ElectronBridgeApi;
         process: NodeJS.Process;

@@ -13,6 +13,7 @@ import {
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { SettingsStore } from './settings-store.service';
 import { TMDB_KEY_CHANGE } from './settings-store.defaults';
 
@@ -49,6 +50,7 @@ describe('SettingsStore dashboard rail settings', () => {
         injector = Injector.create({
             providers: [
                 EpgPreferencesService,
+                RuntimeCapabilitiesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {
@@ -687,6 +689,65 @@ describe('SettingsStore dashboard rail settings', () => {
         );
     });
 
+    describe('player preferred by a native shell', () => {
+        const originalConfig = window.__IPTVNATOR_CONFIG__;
+        const touchShell = {
+            kind: 'android',
+            mode: 'touch',
+            features: {},
+            preferredPlayer: 'html5',
+        };
+
+        afterEach(() => {
+            window.__IPTVNATOR_CONFIG__ = originalConfig;
+        });
+
+        it('keeps Video.js as the default without a shell', async () => {
+            window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: '/api' };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getPlayer()).toBe(VideoPlayer.VideoJs);
+        });
+
+        it('uses the shell player on a fresh install', async () => {
+            window.__IPTVNATOR_CONFIG__ = { SHELL: touchShell };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getPlayer()).toBe(VideoPlayer.Html5Player);
+        });
+
+        it('uses the shell player when saved settings have no player', async () => {
+            window.__IPTVNATOR_CONFIG__ = { SHELL: touchShell };
+            storedSettings = { showCaptions: true };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getPlayer()).toBe(VideoPlayer.Html5Player);
+            expect(store.getSettings().showCaptions).toBe(true);
+        });
+
+        it('keeps a saved player choice', async () => {
+            window.__IPTVNATOR_CONFIG__ = { SHELL: touchShell };
+            storedSettings = { player: VideoPlayer.VideoJs };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getPlayer()).toBe(VideoPlayer.VideoJs);
+        });
+
+        it('keeps Video.js for a TV shell without a preferred player', async () => {
+            window.__IPTVNATOR_CONFIG__ = {
+                SHELL: { kind: 'android', mode: 'tv', features: {} },
+            };
+            const store = injector.get(SettingsStore);
+            await store.loadSettings();
+
+            expect(store.getPlayer()).toBe(VideoPlayer.VideoJs);
+        });
+    });
+
     it('defaults ambient player mode to false when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);
@@ -888,6 +949,7 @@ describe('SettingsStore storage failure reporting', () => {
         injector = Injector.create({
             providers: [
                 EpgPreferencesService,
+                RuntimeCapabilitiesService,
                 SettingsStore,
                 EpgSourceSettingsService,
                 {
