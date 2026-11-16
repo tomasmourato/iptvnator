@@ -567,3 +567,72 @@ A separate plan, not started:
 Rejected: streaming through the loopback backend or `shouldInterceptRequest`
 (nothing network-side fails), and patching hls.js to drop leading pictures
 (speculative; belongs upstream).
+
+## Fix: phone live lists that don't scroll and share the screen with a placeholder (2026-11-16)
+
+Found on the phone AVD (`LisBora_API37`, 411×840 CSS px) with the mock
+provider: on Xtream Live › a category, the channel list could not be scrolled
+and the lower half of the screen showed the empty "Please select a channel to
+start playback" panel.
+
+### Diagnosis (measured on the AVD)
+| Box | Size |
+|---|---|
+| `.sidebar` | 353 px, capped by the live-layout mixin's `max-height: 42vh` |
+| `app-portal-channels-list` | 295 px, `overflow: hidden` |
+| `cdk-virtual-scroll-viewport` | **670 px**: global `.scroll-viewport-portals { min-height: calc(100vh - 170px) !important }` in `apps/web/src/styles.scss` |
+| `.content-container` (placeholder) | 379 px (`flex: 1 1 auto`, 240 px floor) |
+
+- The viewport was taller than the box that clips it, so it had nothing to
+  scroll and the rows past 295 px could not be reached, even while playing.
+  The same min-height was also what held the phone list open: without it the
+  list fell to its 72 px floor under the player.
+- The mixin stacked the content pane under the list even when it only held
+  the placeholder. M3U did the same with its 50/50 split (placeholder on top).
+
+### Fix (`fix(ui)` commit, CSS only, all rules ≤640 px)
+- `styles.scss`: no min-height on `.scroll-viewport-portals` at phone width.
+- Xtream live layout: the phone list states its own share, `height: 42vh`
+  (the playing split stays 353 / 379 px).
+- Live-layout mixin: with an expanded list and a content pane that holds
+  only the placeholder, the pane is hidden and the list takes the whole body.
+  This covers Xtream, Stalker, the Favorites/Recent live tab and M3U. A
+  collapsed list keeps its restore state. M3U's deferred-list skeleton keeps
+  the old split (see below).
+- E2E (`mobile-layout.e2e.ts`): new portrait Xtream, M3U and Stalker cases;
+  the landscape case now checks the idle list, then the playing split. The
+  new checks failed on the unfixed tree (placeholder pane visible).
+
+### The M3U skeleton and the idle trigger
+The first version expanded M3U's loading skeleton to full height too.
+`android-touch.mjs` then failed twice at "synthetic playlist did not load".
+- The M3U list is a `@defer` (on idle) block. On the AVD, while the skeleton
+  shimmers, the page sometimes gets no idle time at all (`requestIdleCallback`
+  never fires for 40 s+), so the list doesn't render.
+- **This happens with the unfixed APK too.** Cold loads: unfixed 5 of 7
+  rendered within 1.1 s, the others stayed stuck for 40 s+; the first fixed
+  version 3 of 8.
+- The final version keeps the skeleton at the old 50/50 split (the loading
+  phase is unchanged), and the list takes the full height once it renders.
+  Cold loads: 2 of 3 within 1.1 s. During loading, 366 / 366 px; after,
+  732 px.
+- Follow-up (upstream, not done): the deferred M3U list can wait 40 s+ for
+  idle on a slow device. A timer fallback on the `@defer` trigger would cap it.
+
+### Results
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass |
+| release notes | valid (`.changes/live-phone-channel-list.md`) |
+| `mobile-layout.e2e.ts` (9 tests) | pass with `--workers=2`. In one run with the default workers and the AVD running, 5 setup steps timed out; they pass on a rerun |
+| `inline-player-layout.e2e.ts`, `xtream.e2e.ts` channel scrollbar (desktop) | pass |
+| Phone AVD, Xtream | idle: list 732 px, no placeholder. Playing: 353 / 379 px, the list scrolls to its last row (`scrollTop` 0 → 128.8, the maximum). Before: rows 5 and 6 of 6 cut off, no scrolling |
+| Phone AVD, M3U | idle: list 732 px. Playing: 366 / 366 px, as before. A collapsed list shows "The channels list is hidden" with its restore button |
+| Phone AVD, landscape (864 px) | desktop side-by-side layout, unchanged |
+| Virtual list growing back (Chromium, 2 736 px Xtream list) | no blank rows at any scroll depth after the list grows without a window resize |
+| `android-touch.mjs` phone | 6/7 PASS. The 7th, "Back did not return to the page" (launcher shortcut), **fails the same way with the unfixed APK today** |
+| `tv-remote.mjs` / `tv-longlist.mjs` (Chromium, devserver TV, `width=1280`) | 133 / 19 checks passed |
+| TV AVD screens | not re-run: every rule is inside `max-width: 640px`, and the TV page is pinned at 1280 or 960 CSS px |
+
+The check APKs were built with JDK 21 (no JDK 17 on this machine any more;
+web assets only).
