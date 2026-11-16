@@ -142,13 +142,25 @@ jobs:
             cat "$LOG"
             exit 1
           fi
-          # Both suites always run; the dev server log is printed when either fails.
+          # The touch suite needs a second dev server in touch mode (the same mock provider).
+          TOUCH_LOG="$RUNNER_TEMP/devserver-touch.log"
+          node "$SHELL_DIR/devserver/server.mjs" --www "$WWW" --port 43332 --touch > "$TOUCH_LOG" 2>&1 &
+          TOUCH_PID=$!
+          trap 'kill "$DEV_PID" "$TOUCH_PID" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:43332/ && break
+            sleep 1
+          done
+          # All suites always run; the dev server logs are printed when any fails.
           status=0
           node "$SHELL_DIR/tests/tv-remote.mjs" --shots "$SHOTS/remote" || status=1
           node "$SHELL_DIR/tests/tv-longlist.mjs" --shots "$SHOTS/longlist" || status=1
+          node "$SHELL_DIR/tests/tv-touch.mjs" --shots "$SHOTS/touch" || status=1
           if [ "$status" != 0 ]; then
             echo "--- dev server log"
             cat "$LOG"
+            echo "--- touch dev server log"
+            cat "$TOUCH_LOG"
           fi
           exit "$status"
 

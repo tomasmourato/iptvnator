@@ -3,8 +3,6 @@ package org.tvshell.iptvnator.ui;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.SystemClock;
-import android.view.View;
-import android.webkit.WebView;
 
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
@@ -49,8 +47,7 @@ final class ExternalOffer {
                 @Override
                 public void onDismiss(DialogInterface dialog) {
                     externalDialog = null;
-                    WebView webView = activity.webView();
-                    if (webView != null) webView.requestFocus(View.FOCUS_DOWN);
+                    activity.focusPage();
                 }
             })
             .show();
