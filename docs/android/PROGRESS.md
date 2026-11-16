@@ -644,3 +644,14 @@ web assets only).
    Add a timer fallback to the trigger, e.g. `@defer (on idle; on timer(…))`,
    and check the cold load on the AVD before and after. Upstream code; needs
    a `.changes/` note.
+2. **Initial-bytes ratchet over its limit.** `pnpm run pr:check` against
+   upstream `master` (`401b42a84`) fails `launch/renderer.initialBytes`:
+   1,201,054 bytes against a limit of 1,200,301 (baseline 1,196,205 + 4,096
+   slack), 753 over. This fix adds 73 of them (its global `styles.scss`
+   rule; the rest of its CSS is lazy). About 680 were already on
+   `origin/android-capacitor` (`749afd992`). A `pr:check` run earlier today
+   passed this step, so a later fork commit is the likely source; the shell
+   capability descriptor (`826dfaa5a`) is the first suspect. Measure each
+   commit, then bring the value back under the limit before any upstream PR
+   (or move the 73-byte rule into the lazy Xtream list stylesheet). Pushed
+   to the fork with the check failing, at the user's request.
