@@ -5,12 +5,16 @@
  *   GET /sample.m3u                                  (M3U playlist)
  *   GET /live|movie|series/...                        (a short WebM clip, if available)
  *
- * Usage: node mock-provider.mjs [--port 43331] [--video path/to/clip.webm]
+ * Usage: node mock-provider.mjs [--port 43331] [--video path/to/clip.webm] [--large-catalog [MiB]]
+ *
+ * --large-catalog answers get_vod_streams and get_series with synthetic catalogues of about
+ * 90 MiB each (or the given size), as some real panels do (see large-catalog.mjs).
  */
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeLargeCatalog } from './large-catalog.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -21,6 +25,8 @@ const opt = (name, def) => {
 const PORT = Number(opt('--port', '43331'));
 const VIDEO = opt('--video', join(__dirname, 'clip.webm'));
 const BASE = `http://127.0.0.1:${PORT}`;
+const largeAt = args.indexOf('--large-catalog');
+const LARGE_MIB = largeAt === -1 ? 0 : Number(/^\d+$/.test(args[largeAt + 1] ?? '') ? args[largeAt + 1] : 90);
 
 const liveCategories = [
     { category_id: '101', category_name: 'News', parent_id: 0 },
@@ -181,6 +187,9 @@ createServer((req, res) => {
             return res.end(JSON.stringify({ user_info: { auth: 0, status: 'Disabled' } }));
         }
         const action = q.get('action') || '';
+        if (LARGE_MIB && (action === 'get_vod_streams' || action === 'get_series')) {
+            return writeLargeCatalog(res, action === 'get_series' ? 'series' : 'vod', LARGE_MIB, q.get('category_id'));
+        }
         let body;
         switch (action) {
             case '':
@@ -239,4 +248,4 @@ createServer((req, res) => {
     }
     res.writeHead(404);
     res.end();
-}).listen(PORT, '127.0.0.1', () => console.log(`mock provider: ${BASE}  (Xtream user/pass, M3U at /sample.m3u)`));
+}).listen(PORT, '127.0.0.1', () => console.log(`mock provider: ${BASE}  (Xtream user/pass, M3U at /sample.m3u${LARGE_MIB ? `, ${LARGE_MIB} MiB VOD and series` : ''})`));
