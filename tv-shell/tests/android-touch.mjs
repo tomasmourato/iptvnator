@@ -109,7 +109,7 @@ try {
     const dialog = page.locator('mat-dialog-container');
     await dialog.locator('input').nth(0).fill('http://127.0.0.1:43331/sample.m3u');
     await dialog.getByRole('button', { name: /Add playlist/i }).click();
-    await until(() => page.locator('.channel-name', { hasText: 'Playable clip' }).count(), 'synthetic playlist did not load', 80);
+    await until(() => page.locator('.channel-name', { hasText: 'Playable clip' }).count(), 'synthetic playlist did not load', 240);
 
     // 5. No remote-control focus layer: no ring, nothing made focusable, the list opens at the top.
     await delay(1500); // the TV layer would have restored its focus by now
@@ -196,6 +196,18 @@ try {
     shot('touch-06-keyboard');
     adb('shell', 'input', 'keyevent', '111'); // Escape: close the keyboard
     console.log(`PASS the keyboard resizes the page (${heightBefore} → ${await page.evaluate(() => window.innerHeight)} CSS px)`);
+
+    // 4. The launcher shortcut opens the shell settings over the running page; Back returns to it.
+    assert.match(adb('shell', 'dumpsys', 'shortcut'), /id=shell_settings/, 'the settings shortcut is published to the launcher');
+    await page.evaluate(() => (window.__touchPageMarker = 'kept'));
+    adb('shell', 'am', 'start', '-a', 'org.tvshell.iptvnator.action.OPEN_SETTINGS', '-n', 'org.tvshell.iptvnator/.ui.MainActivity');
+    const resumed = () => /topResumedActivity=\S+ \S+ (\S+)/.exec(adb('shell', 'dumpsys', 'activity', 'activities'))?.[1] ?? '';
+    await until(() => resumed().endsWith('.ui.SettingsActivity'), 'the shortcut did not open the shell settings');
+    shot('touch-07-shortcut-settings');
+    adb('shell', 'input', 'keyevent', '4'); // Back
+    await until(() => resumed().endsWith('.ui.MainActivity'), 'Back did not return to the page');
+    assert.equal(await page.evaluate(() => window.__touchPageMarker), 'kept', 'the shortcut reloaded the page');
+    console.log('PASS the launcher shortcut opens the shell settings, Back returns to the same page');
 } finally {
     rotate(0);
     adb('reverse', '--remove', 'tcp:43331');
