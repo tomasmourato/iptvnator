@@ -6,6 +6,7 @@ import {
     createPlaybackSourceMetadata,
 } from '@iptvnator/playback/util';
 import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
+import { MissingVideoWatchdog } from '../web-video-support/missing-video-watchdog';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -21,6 +22,11 @@ export interface HtmlVideoElementSessionConfig {
 
 export class HtmlVideoElementSession {
     private attached = false;
+    private readonly missingVideo = new MissingVideoWatchdog({
+        player: InlinePlaybackPlayer.Html5,
+        getSourceUrl: () => this.config.getChannelUrl(),
+        emitPlaybackIssue: (issue) => this.config.emitPlaybackIssue(issue),
+    });
 
     private readonly handleNativePlaybackError = (): void => {
         const video = this.config.video;
@@ -93,6 +99,7 @@ export class HtmlVideoElementSession {
         for (const [event, listener] of this.listeners) {
             this.config.video.addEventListener(event, listener);
         }
+        this.missingVideo.bind(this.config.video);
     }
 
     play(): void {
@@ -115,5 +122,6 @@ export class HtmlVideoElementSession {
         for (const [event, listener] of this.listeners) {
             this.config.video.removeEventListener(event, listener);
         }
+        this.missingVideo.destroy();
     }
 }

@@ -2,12 +2,12 @@ import { VjsVideoElementSession } from './vjs-video-element-session';
 
 describe('VjsVideoElementSession', () => {
     it('binds native playback events once and forwards them', () => {
-        const clearPlaybackIssue = jest.fn();
+        const emitPlaybackIssue = jest.fn();
         const emitPlaybackEnded = jest.fn();
         const video = document.createElement('video');
         const addEventListener = jest.spyOn(video, 'addEventListener');
         const session = new VjsVideoElementSession({
-            clearPlaybackIssue,
+            emitPlaybackIssue,
             emitPlaybackEnded,
         });
 
@@ -18,13 +18,14 @@ describe('VjsVideoElementSession', () => {
         video.dispatchEvent(new Event('ended'));
 
         expect(addEventListener).toHaveBeenCalledTimes(3);
-        expect(clearPlaybackIssue).toHaveBeenCalledTimes(2);
+        expect(emitPlaybackIssue).toHaveBeenCalledTimes(2);
+        expect(emitPlaybackIssue).toHaveBeenCalledWith(null);
         expect(emitPlaybackEnded).toHaveBeenCalledTimes(1);
         expect(session.video()).toBe(video);
     });
 
     it('detaches the old Tech video before binding its replacement', () => {
-        const clearPlaybackIssue = jest.fn();
+        const emitPlaybackIssue = jest.fn();
         const emitPlaybackEnded = jest.fn();
         const firstVideo = document.createElement('video');
         const secondVideo = document.createElement('video');
@@ -33,7 +34,7 @@ describe('VjsVideoElementSession', () => {
             'removeEventListener'
         );
         const session = new VjsVideoElementSession({
-            clearPlaybackIssue,
+            emitPlaybackIssue,
             emitPlaybackEnded,
         });
 
@@ -48,12 +49,12 @@ describe('VjsVideoElementSession', () => {
     });
 
     it('destroys idempotently and ignores events from the detached video', () => {
-        const clearPlaybackIssue = jest.fn();
+        const emitPlaybackIssue = jest.fn();
         const emitPlaybackEnded = jest.fn();
         const video = document.createElement('video');
         const removeEventListener = jest.spyOn(video, 'removeEventListener');
         const session = new VjsVideoElementSession({
-            clearPlaybackIssue,
+            emitPlaybackIssue,
             emitPlaybackEnded,
         });
 
@@ -64,8 +65,38 @@ describe('VjsVideoElementSession', () => {
         video.dispatchEvent(new Event('ended'));
 
         expect(removeEventListener).toHaveBeenCalledTimes(3);
-        expect(clearPlaybackIssue).not.toHaveBeenCalled();
+        expect(emitPlaybackIssue).not.toHaveBeenCalled();
         expect(emitPlaybackEnded).not.toHaveBeenCalled();
         expect(session.video()).toBeNull();
+    });
+
+    it('reports a source that plays without decoding video when given its URL', () => {
+        jest.useFakeTimers();
+        const emitPlaybackIssue = jest.fn();
+        const video = document.createElement('video');
+        Object.defineProperties(video, {
+            paused: { get: () => false },
+            getVideoPlaybackQuality: {
+                value: () => ({ totalVideoFrames: 0 }),
+            },
+        });
+        const session = new VjsVideoElementSession({
+            emitPlaybackIssue,
+            emitPlaybackEnded: jest.fn(),
+            getSourceUrl: () => 'https://example.com/live/channel.m3u8',
+        });
+
+        session.bind(video);
+        video.dispatchEvent(new Event('playing'));
+        jest.advanceTimersByTime(8000);
+        session.destroy();
+        jest.useRealTimers();
+
+        expect(emitPlaybackIssue).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                code: 'unsupported-codec',
+                sourceUrl: 'https://example.com/live/channel.m3u8',
+            })
+        );
     });
 });
