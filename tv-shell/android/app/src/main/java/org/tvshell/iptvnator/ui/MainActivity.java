@@ -70,6 +70,8 @@ public class MainActivity extends Activity {
     private static final String STATE_PLAYBACK_ID = "nativePlaybackId";
     private static final String STATE_PLAYBACK_CONTENT = "nativePlaybackContent";
     private static final String STATE_PLAYBACK_CHECKPOINT = "nativePlaybackCheckpoint";
+    /** Launcher shortcut (res/xml/shortcuts.xml): open the shell settings over the app. */
+    static final String ACTION_OPEN_SETTINGS = "org.tvshell.iptvnator.action.OPEN_SETTINGS";
     private static int rendererDeaths;
     private static long lastRendererDeathAt;
 
@@ -171,6 +173,10 @@ public class MainActivity extends Activity {
                 openSettings();
             }
         });
+        // Not on a recreate, and not when Recents replays the shortcut's intent: it was handled then.
+        if (savedInstanceState == null && (getIntent().getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) {
+            handleShortcut(getIntent());
+        }
 
         // The WebView is created in code, not inflated: when the system WebView is missing, disabled
         // or being updated (Amazon WebView updates in the background), its constructor throws an
@@ -637,6 +643,17 @@ public class MainActivity extends Activity {
 
     void openSettings() {
         startActivity(new Intent(this, SettingsActivity.class));
+    }
+
+    /** singleTask: the shortcut reaches a running shell here, with the page kept as it is. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleShortcut(intent);
+    }
+
+    private void handleShortcut(Intent intent) {
+        if (intent != null && ACTION_OPEN_SETTINGS.equals(intent.getAction())) openSettings();
     }
 
     // ---------------------------------------------------------- lifecycle

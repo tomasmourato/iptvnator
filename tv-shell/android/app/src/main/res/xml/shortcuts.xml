@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut (long-press the app icon) to the shell settings: on a phone or tablet there is
+     no remote with a Menu key to hold. MainActivity handles the action; SettingsActivity stays
+     unexported. targetPackage is the applicationId: a flavor with another applicationId overrides
+     this file in its own source set. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shell_settings"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_settings_short"
+        android:shortcutLongLabel="@string/settings_title">
+        <intent
+            android:action="org.tvshell.iptvnator.action.OPEN_SETTINGS"
+            android:targetPackage="org.tvshell.iptvnator"
+            android:targetClass="org.tvshell.iptvnator.ui.MainActivity" />
+    </shortcut>
+</shortcuts>
