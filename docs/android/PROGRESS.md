@@ -356,8 +356,9 @@ Touch mode is done in five code commits and this docs commit, all inside
     (sticky hover). That's app styling, not the TV ring;
   - the add-playlist step can take over 20 s on a cold emulator (26 s seen
     with both the commit 4 and 5 APKs). The test now waits 60 s.
-- **Next:** one upstream rebase, then the TV checks against a same-day
-  baseline and the phone checklist again (results below once done).
+- **Rebased** on `upstream/master` `d824c5e50` (11 upstream commits, none in
+  `tv-shell/` or `docs/android/`; no conflicts, lockfile unchanged). The
+  pre-rebase branch is kept as `backup/android-capacitor-pre-rebase-20261116`.
 - **To resume:**
   - AVDs: phone `LisBora_API37` (`-port 5554`), tablet
     `TvShell_Tablet_API37` (`-port 5558`), TV `TvShell_TV_API34`
@@ -365,11 +366,44 @@ Touch mode is done in five code commits and this docs commit, all inside
   - Run `WWW=$PWD/dist/apps/web tv-shell/devserver/run-dev.sh` (mock on
     43331) and `node tv-shell/devserver/server.mjs --www dist/apps/web
     --port 43332 --touch`.
-  - Build with JDK 17. The baseline APK, screenshot scripts and shots live
-    in the session scratchpad. If they're gone, rebuild the baseline from
-    `8bc278232`.
+  - Build with JDK 17. The TV baseline is the unmodified `tv-shell/` of
+    `upstream/master` with the same PWA bundle as the candidate:
+    `git archive upstream/master tv-shell/android | tar -x -C <dir>`, copy
+    `app/src/main/assets/www/` from the candidate tree, then
+    `./gradlew :app:assembleDebug`. Capture the baseline on the same day as
+    the candidate runs. The screenshot scripts are scratch tools, not
+    committed.
   - In Git Bash, set `MSYS_NO_PATHCONV=1` before `adb shell … /sdcard/…`
     commands, or the path is rewritten to the Git install folder.
+
+### After the upstream rebase (2026-11-16)
+The baseline is `upstream/master`'s own `tv-shell/` built with the same new
+PWA bundle, because upstream changed the web app (#2249 adds a TV home
+screen). The two APKs' contents differ only in the fork's files: the
+shortcut, the settings layout, `tv.js` and the code.
+
+| Check | Result |
+|---|---|
+| TV emulator suites, served `index.html` | 3 baseline and 3 rebased runs: PASS lines (1 / 1 / 4) and `index.html` identical |
+| TV screens | rebased runs 2–3: facts identical, 0.000% on all 8 shots. Run 1: only the known settings initial-focus race (none of the 3 baseline runs hit it this time) |
+| `tv-remote.mjs` / `tv-longlist.mjs` / `tv-touch.mjs` | 133 / 19 / 14 checks, all passed |
+| `node --test tv-shell/tests/*.test.mjs` | 15 passed |
+| `android-touch.mjs` phone | 7/7 PASS |
+| Phone emulator suites | 1 / 3 / 1 / 4 PASS, the same as before |
+| lint | passes completely (upstream fixed the `ui-playback` max-lines failure) |
+| typecheck:web / build:frontend:pwa | pass |
+| test:frontend | flaky upstream test, see below |
+| release notes / agent guidance | 60 notes valid / 4 files valid |
+
+The tablet wasn't re-run after the rebase. It passed 7/7 on commit 5.
+
+**Flaky upstream test.** Two of six `test:frontend` runs on the rebased tree
+failed. The first failure's test wasn't recorded; the second is
+`apps/web/src/app/settings/settings.component.storage-failure.spec.ts` ›
+"SettingsComponent storage failures › warns when the persisted settings could
+not be read". Its `beforeEach(waitForAsync(…))` exceeded Jest's 5000 ms hook
+timeout; that suite took 75.8 s in the failing run (1 failed, 1200 passed). The
+fork doesn't touch that file, so it is left to upstream.
 
 ## Fix: Xtream catalogues over 64 MiB (2026-11-16)
 
