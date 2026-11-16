@@ -46,9 +46,21 @@ l'app desktop casserait sa mise à jour automatique).
 | Menu | menu contextuel de l'élément ; sur l'image : ouvrir le flux dans VLC ; **appui long** : réglages de IPTVnator. La touche menu contextuel HDMI-CEC et Y d'une manette font de même |
 | ▶⏸ ⏪ ⏩ | lecture/pause, −15 s, +30 s |
 
+## Téléphones et tablettes (mode tactile)
+
+Sur un appareil qui n'est pas une TV (pas de mode TV, pas de Leanback, un écran
+tactile), la page s'affiche à la largeur de l'appareil : les mises en page
+téléphone et tablette de l'app s'appliquent et le zoom à deux doigts fonctionne.
+Pas d'anneau de focus ni de couche D-pad ; les barres système restent visibles,
+le clavier redimensionne la page, une rotation garde la page et la lecture, et
+la vidéo en plein écran passe en paysage. Le réglage *Interface* force le mode
+TV ou tactile.
+
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)
 
-Taille de l'interface (960 / 1280 / 1600 px), lecteur externe préféré,
+Sur un téléphone ou une tablette : appui long sur l'icône de l'app → *Réglages de IPTVnator*.
+Interface (Automatique / TV / Tactile), taille de l'interface (960 / 1280 /
+1600 px, en mode TV seulement), lecteur externe préféré,
 proposition automatique d'un lecteur externe, débogage à distance
 (`chrome://inspect`, désactivé par défaut), effacement des données, diagnostic
 (version du WebView, écran, port du serveur).
@@ -109,6 +121,10 @@ adb shell dumpsys package com.amazon.webview.chromium | grep versionName
   la ligne « Écran » du diagnostic et changez *Taille de l'interface* (960 =
   grande, 1280 = normale, 1600 = dense). Si l'affichage reste coupé, rapportez
   la ligne « Écran » et le build.
+- **Page de bureau minuscule sur un téléphone, ou anneau de focus sur une TV
+  tactile** : le mode d'interface est faux. Appui long sur l'icône →
+  *Réglages de IPTVnator* (ou appui long sur Retour), puis *Interface* →
+  *Automatique*, ou forcez *Tactile* ou *TV*.
 
 ### Télécommande
 
