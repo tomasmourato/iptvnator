@@ -296,6 +296,34 @@ difference on all 8 shots. These two initial-focus spots are existing races
 in TV mode, not changes. From now on, compare TV screens against a baseline
 run captured the same day.
 
+### Commit 5: launcher shortcut to the shell settings
+- A static shortcut, `res/xml/shortcuts.xml`. A long press on the app icon
+  shows *IPTVnator settings* (*Réglages de IPTVnator* in French). It starts
+  `MainActivity` with `org.tvshell.iptvnator.action.OPEN_SETTINGS`.
+  `MainActivity` opens the settings:
+  - in `onCreate`, but not on a recreate or a relaunch from Recents;
+  - in `onNewIntent`, the singleTask path, which keeps the running page.
+
+  `SettingsActivity` stays unexported. The shortcut's `targetPackage` is the
+  applicationId, so a flavor with another ID overrides the file.
+- **`android-touch.mjs`:**
+  - new check: the shortcut is published (`dumpsys shortcut`), opens the
+    settings over the running page, and Back returns to the same page (a JS
+    marker survives). It fails on the commit 4 APK, at "the settings shortcut
+    is published to the launcher".
+  - the add-playlist wait grows from 20 to 60 s. A cold phone emulator took
+    26 s today with both APKs.
+
+| Check | Result |
+|---|---|
+| `:backend:check` | 65 passed |
+| `android-touch.mjs` phone / tablet | 7/7 PASS on both |
+| Phone / tablet emulator suites | 1 / 3 / 1 / 4 PASS on both |
+| Launcher (phone) | long press shows *IPTVnator settings*; tapping it opens the settings, Back returns to the app. A cold start through the shortcut opens the settings, Back loads the app, and a later icon launch doesn't reopen the settings |
+| TV, same-day baseline | 3 baseline runs and 3 commit 5 runs: PASS lines and served `index.html` identical. Commit 5 runs 1–2: facts identical, 0.000% on all 8 shots. Run 3: initial focus on the settings page went to the Dashboard rail link (the known race). Baseline run 6 did the same today and matches it exactly (facts identical, 0.000%) |
+| `tv-remote.mjs` / `tv-longlist.mjs` | all checks passed (no `tv.js` change) |
+| Monorepo gates | as before (lint: only the upstream `ui-playback` failure) |
+
 ## Where step 1 stopped (2026-11-16)
 - **Done:** commits 1–4. Items 1–6 of the checklist are fixed on the phone
   and tablet. Item 7 (fullscreen in landscape) is in commit 3.
