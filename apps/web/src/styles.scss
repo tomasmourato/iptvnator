@@ -258,6 +258,13 @@ body.dark-theme {
 .scroll-viewport-portals {
     min-height: calc(100vh - 170px) !important;
     overflow-x: hidden !important;
+
+    // A phone stacks the channel list above the player and caps its height,
+    // and the list clips its overflow: a viewport taller than the list had
+    // nothing to scroll and the rows past the clip could not be reached.
+    @media (max-width: 640px) {
+        min-height: 0 !important;
+    }
 }
 
 // Modal overlays tint and blur the page behind their backdrop, on the same

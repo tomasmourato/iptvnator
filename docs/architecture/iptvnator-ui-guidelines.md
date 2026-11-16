@@ -1698,7 +1698,17 @@ but the component has not.
   The toggle's label is variant-aware — categories, filters, or settings
   sections — because a fixed label would misdescribe two of the three.
 - Other side rails stack above the content instead of beside it: the
-  live-layout channel sidebar and the M3U channel drawer.
+  live-layout channel sidebar and the M3U channel drawer. While nothing
+  plays, the content pane holds only the "select a channel" placeholder, so
+  the live-layout mixin hides it and the channel list takes the whole body;
+  the player pane joins the stack when a channel starts. A collapsed list
+  keeps its restore state, and M3U's deferred-list skeleton keeps its old
+  share (a full screen of shimmer can delay the idle moment the list waits
+  for).
+- A scroll viewport inside a capped phone rail must not carry a
+  viewport-relative `min-height`: the rail clips its overflow, so a taller
+  viewport has nothing to scroll and its last rows cannot be reached. State
+  the rail's own share (`height`) instead.
 
 ### Resizable rails need `!important`
 
