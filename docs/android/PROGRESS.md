@@ -475,3 +475,88 @@ problem between the two suites. Run android-touch first, or on its own.
    upstream code.
 3. **Partial import.** One failed catalogue blocks every tab, including Live
    that loaded. Upstream behaviour in `with-content.feature.ts`.
+
+## Fix: live channels that fail or hang in the built-in player (2026-11-16)
+
+Found in real-world testing on the Pixel 10 (WebView/Chrome 157). On Xtream
+provider A, many live channels either showed "The browser player reported a
+playback error" or stayed on the loading screen forever. The same channels
+play in another player.
+
+### Diagnosis
+- Captured a redacting WebView CDP trace (console, network, Audits, Media
+  domain; hosts replaced by labels, paths and query values stripped as they
+  were recorded) plus filtered logcat. In-page probes returned only codec
+  statistics, never URLs.
+- **Network ruled out.** The m3u8 answers 302 to another host. Every hop and
+  segment has `Access-Control-Allow-Origin: *`, segments are 200
+  `video/mp2t`, and there are no CORS, mixed-content or blocked requests.
+- **"Loading forever" = HEVC in MPEG-TS.** The PMT has video stream type 0x24
+  (HEVC) and AAC audio. Video.js 8 / mux.js 7.1 only knows H.264 (0x1B), so
+  it drops the video without an error. Chromium plays the audio only
+  (`videoWidth` 0, 0 decoded frames). The WebView supports HEVC through MSE,
+  and the HTML5 player (hls.js 1.7.3, which has an HEVC-in-TS parser)
+  plays these channels.
+- **The decode error = open-GOP H.264.** High@4.0, I-frames are non-IDR with
+  a recovery-point SEI (`recovery_frame_cnt=0`), and leading B-frames
+  reference the previous GOP. Chromium's MediaCodec reports "initial decode
+  error", the FFmpeg fallback rejects the first non-key packet, then
+  `PIPELINE_ERROR_DECODE`. It fails the same way with Video.js and with
+  hls.js, so no WebView engine can start it. Native players (Media3 HLS sets
+  `FLAG_ALLOW_NON_IDR_KEYFRAMES`, VLC) drop the leading pictures.
+- The vague message: Video.js `MEDIA_ERR_DECODE` was classified as
+  `unknown-playback-error`.
+
+### Fix, phase 1 (three commits)
+1. `fix(playback)`: a decode failure on the media element itself is
+   reported as `media-decode-error` (VHS's own code 3, "no working
+   playlists", stays unknown). `tv.js` already offers the external player
+   for that code.
+2. `fix(playback)`: `MissingVideoWatchdog` on the Video.js and HTML5
+   elements reports `unsupported-codec` after 8 s of playback with no
+   decoded video frame (audio containers excluded), so the spinner ends and
+   the external-player offer appears.
+3. `feat(tv-shell)`: shell capability descriptor (below). In touch mode the
+   shell prefers the HTML5 player, applied only when no player choice is
+   stored; TV keeps Video.js.
+
+### Roadmap step 3 (capability hook): what this covers
+- **Done:** the descriptor itself. `assets/app-config.js` (ShellSite and
+  the devserver) carries `__IPTVNATOR_CONFIG__.SHELL = { kind, mode,
+  features: { externalPlayer, backupExport }, preferredPlayer? }`, validated
+  by `parseShellDescriptor` (`@iptvnator/shared/interfaces`) and read
+  through `RuntimeCapabilitiesService` (`shell`, `hasShellFeature()`). The
+  first consumer is the default player.
+- **Remaining:** migrate the `tv-shell` class readers to the capability:
+  `settings-backup.facade.ts` (`supportsExport` → `backupExport`),
+  `grid-window.ts` and `styles.scss`. Gate "open in external player" in the
+  app on `externalPlayer`. Add feature flags when SAF export lands (roadmap
+  step 4).
+
+### Results
+| Check | Result |
+|---|---|
+| Monorepo gates (each commit) | lint, test:frontend, typecheck:web, build:frontend:pwa pass; release notes valid |
+| `pnpm nx test ui-playback` alone | two Windows-only palette spec failures (path separators, line endings), unrelated upstream files, same before the fork's change |
+| `:backend:check` | 71 passed |
+| `node --test tv-shell/tests/*.test.mjs` | 16 passed (+1: descriptor) |
+| `tv-remote.mjs` / `tv-longlist.mjs` (Chromium, devserver, TV) | all checks passed; TV descriptor has no `preferredPlayer` |
+| `android-bridge` / `-protocol-discovery` / `-background-media` (TV AVD, new APK) | 1 / 1 / 4 PASS, same as the TV baseline |
+| Pixel 10, real provider | pending: HEVC channels should play with the default player; open-GOP channels should show the decode diagnostic and the external-player offer |
+
+### Phase 2 (later, after roadmap step 2, security): native Media3 player
+The only in-app fix for open-GOP H.264 (and for AC3/E-AC3 and raw `.ts`).
+A separate plan, not started:
+- add `media3-exoplayer`, `-hls`, `-ui` to `tv-shell/android/app` (about
+  2–3 MB of APK);
+- a `NativePlayerActivity` with `PlayerView`; Back returns to the WebView;
+- offered first in `ExternalOffer` ("Play with built-in player"); later,
+  optionally route there automatically after a decode error;
+- the URL arrives through the existing `onPlaybackError` bridge; logs go
+  through `DiagnosticRedactor`;
+- trade-off: no app overlay, EPG or zapping inside it unless bridged later.
+  Electron and PWA are unaffected.
+
+Rejected: streaming through the loopback backend or `shouldInterceptRequest`
+(nothing network-side fails), and patching hls.js to drop leading pictures
+(speculative; belongs upstream).
