@@ -110,9 +110,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         signal<SeriesPlaybackNavigation | null>(null);
     private readonly videoSession = new VjsVideoElementSession({
         releasePictureInPicture: !this.sharedControls,
-        clearPlaybackIssue: () => this.playbackIssue.emit(null),
+        emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
         emitPlaybackEnded: () => this.playbackEnded.emit(),
         emitPlaybackStarted: () => this.playbackStarted.emit(),
+        getSourceUrl: () => this.desiredSource?.src,
     });
     private readonly mpegTsSession = new VjsMpegTsSession({
         player: () => this.player,

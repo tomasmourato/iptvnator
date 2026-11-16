@@ -72,7 +72,8 @@ describe('HtmlVideoElementSession', () => {
         video.dispatchEvent(new Event('ended'));
 
         expect(playbackEnded).toHaveBeenCalledTimes(1);
-        expect(removeEventListener).toHaveBeenCalledTimes(7);
+        // 7 session listeners + 4 missing-video watchdog listeners.
+        expect(removeEventListener).toHaveBeenCalledTimes(11);
     });
 
     it('persists volume changes from the native video element', () => {
