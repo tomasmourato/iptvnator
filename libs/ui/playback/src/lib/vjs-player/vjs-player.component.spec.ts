@@ -310,6 +310,39 @@ describe('VjsPlayerComponent', () => {
         );
     });
 
+    it('classifies a VHS stream as a decode error when the media element failed to decode', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        harness.vhsActive = true;
+        render({
+            sources: [
+                {
+                    src: 'https://example.test/live/playlist.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        Object.defineProperty(harness.currentVideo, 'error', {
+            configurable: true,
+            value: { code: 3, message: 'PIPELINE_ERROR_DECODE' },
+        });
+        harness.currentError = {
+            code: 3,
+            message:
+                'The media playback was aborted due to a corruption problem.',
+        };
+
+        harness.emit('error');
+
+        expect(issues.at(-1)).toEqual(
+            expect.objectContaining({
+                code: 'media-decode-error',
+                source: 'native',
+                sourceUrl: 'https://example.test/live/playlist.m3u8',
+            })
+        );
+    });
+
     it('keeps non-VHS native code three as media decode evidence', () => {
         const issues: Array<PlaybackDiagnostic | null> = [];
         component.playbackIssue.subscribe((issue) => issues.push(issue));
