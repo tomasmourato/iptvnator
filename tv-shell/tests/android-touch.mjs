@@ -110,8 +110,27 @@ try {
     await dialog.locator('input').nth(0).fill('http://127.0.0.1:43331/sample.m3u');
     await dialog.getByRole('button', { name: /Add playlist/i }).click();
     await until(() => page.locator('.channel-name', { hasText: 'Playable clip' }).count(), 'synthetic playlist did not load', 80);
+
+    // 5. No remote-control focus layer: no ring, nothing made focusable, the list opens at the top.
+    await delay(1500); // the TV layer would have restored its focus by now
+    const fresh = await page.evaluate(() => ({
+        touchClass: document.documentElement.classList.contains('tv-shell-touch'),
+        rings: document.querySelectorAll('.tv-focus').length,
+        madeFocusable: document.querySelectorAll('[data-tv-focusable]').length,
+        top: document.querySelector('cdk-virtual-scroll-viewport')?.scrollTop ?? -1,
+        first: document.querySelector('.channel-name')?.textContent?.trim(),
+    }));
+    shot('touch-03a-list');
+    assert.ok(fresh.touchClass, 'tv.js runs in touch mode');
+    assert.equal(fresh.rings, 0, 'no TV focus ring after loading the playlist');
+    assert.equal(fresh.madeFocusable, 0, 'nothing made focusable for the D-pad');
+    assert.equal(fresh.top, 0, 'the channel list opens at the top');
+    assert.match(fresh.first || '', /^1\./, 'the first row is channel 1');
+    console.log('PASS no TV focus ring and the channel list opens at the top');
+
     await page.locator('.channel-name', { hasText: 'Playable clip' }).first().click();
     await until(() => page.evaluate(() => !!document.querySelector('video')?.currentSrc), 'the clip did not start');
+    assert.equal(await page.evaluate(() => document.querySelectorAll('.tv-focus').length), 0, 'no TV focus ring after opening a channel');
     await page.evaluate(() => {
         const video = document.querySelector('video');
         video.loop = true;

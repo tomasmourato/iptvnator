@@ -43,7 +43,7 @@ final class FullscreenController {
         customView = null;
         WebView webView = activity.webView();
         webView.setVisibility(View.VISIBLE);
-        webView.requestFocus(View.FOCUS_DOWN);
+        activity.focusPage();
         if (customViewCallback != null) customViewCallback.onCustomViewHidden();
         customViewCallback = null;
         if (activity.chrome().touch()) {
