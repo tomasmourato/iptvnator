@@ -24,6 +24,36 @@ describe('extractStalkerItemType', () => {
         ).toBe('live');
     });
 
+    it('treats a channel saved from the live or radio section as live', () => {
+        // A recently viewed ITV channel keeps its own genre in category_id;
+        // only favoriteContentType says it came from the live section. The
+        // home hero labelled it a movie.
+        expect(
+            extractStalkerItemType({
+                id: '5001',
+                title: 'Aurora News',
+                category_id: '101',
+                favoriteContentType: 'itv',
+            })
+        ).toBe('live');
+        expect(
+            extractStalkerItemType({
+                id: '5002',
+                title: 'Night Music',
+                category_id: '7',
+                favoriteContentType: 'radio',
+            })
+        ).toBe('live');
+        expect(
+            extractStalkerItemType({
+                id: '5003',
+                title: 'Black Harbor',
+                category_id: '12',
+                favoriteContentType: 'vod',
+            })
+        ).toBe('movie');
+    });
+
     it.each([true, 1, '1'] as const)(
         'treats is_series=%p as a series item',
         (isSeries) => {
