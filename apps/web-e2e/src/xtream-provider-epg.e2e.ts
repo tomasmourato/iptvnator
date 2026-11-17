@@ -254,6 +254,39 @@ test('@xtream @epg PWA fits a long channel name and programme in the compact doc
     expect(bounds.programmeWidth).toBeGreaterThan(0);
 });
 
+test('@xtream @epg @mobile a failed stream in the phone guide dock shows a compact notice', async ({
+    page,
+}) => {
+    await page.route('**/live/**', (route) => route.abort());
+    await addXtreamPortal(page, EPG_PORTAL);
+    await page.getByRole('link', { name: 'Live TV', exact: true }).click();
+    await page.locator('.context-panel .category-item').first().click();
+    await page
+        .locator('app-live-stream-layout [data-test-id="channel-item"]')
+        .first()
+        .click();
+    await page.locator('[data-test-id="xtream-epg-guide"]').click();
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    // The dock's player is a strip on a phone: the panel keeps its badge and
+    // a one-line headline instead of a cropped full panel.
+    const panel = page.locator('.video-player .web-player-diagnostic');
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel.locator('.web-player-diagnostic__badge')).toBeVisible();
+    await expect(
+        panel.locator('.web-player-diagnostic__description')
+    ).toBeHidden();
+    const headline = panel.locator('.web-player-diagnostic__headline');
+    const fits = await headline.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const host = element
+            .closest('.web-player-diagnostic')!
+            .getBoundingClientRect();
+        return box.bottom <= host.bottom + 1;
+    });
+    expect(fits).toBe(true);
+});
+
 test('@xtream @epg PWA keeps CJK narrow titles upright without rotating other scripts differently', async ({
     page,
 }) => {
