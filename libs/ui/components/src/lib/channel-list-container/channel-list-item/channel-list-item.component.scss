@@ -27,8 +27,12 @@
         transform 0.18s ease,
         color 0.15s ease;
 
-    &:hover {
-        background: color-mix(in srgb, currentColor 8%, transparent);
+    // Hover fills need a pointer that hovers: after a tap, a touch screen
+    // keeps :hover on the row until the next tap elsewhere.
+    @media (hover: hover) {
+        &:hover {
+            background: color-mix(in srgb, currentColor 8%, transparent);
+        }
     }
 
     &.active {
@@ -289,10 +293,11 @@
             background-color 0.15s ease,
             transform 0.15s ease;
 
-        &:hover {
-            opacity: 1;
-            background: color-mix(in srgb, currentColor 10%, transparent);
-            /* transform: translateY(-1px); */
+        @media (hover: hover) {
+            &:hover {
+                opacity: 1;
+                background: color-mix(in srgb, currentColor 10%, transparent);
+            }
         }
     }
 
