@@ -90,6 +90,10 @@ test('@web @playback compact player opens settings as a bottom sheet', async ({
     const sheet = controls.getByRole('dialog', { name: 'Settings' });
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveClass(/player-controls__settings--sheet/);
+    // The video player shortcut is for touch screens; a mouse has Settings.
+    await expect(
+        sheet.locator('[data-test-id="player-settings-video-player"]')
+    ).toHaveCount(0);
     await expect(controls.locator('.player-controls__bar')).toHaveClass(
         /player-controls__bar--sheet-open/
     );
@@ -122,4 +126,35 @@ test('@web @playback compact player opens settings as a bottom sheet', async ({
     await expect(
         controls.getByRole('button', { name: 'Play', exact: true })
     ).toBeVisible();
+});
+
+test.describe('touch phone', () => {
+    test.use({ hasTouch: true, isMobile: true });
+
+    test('@web @playback @mobile settings sheet links to the default video player', async ({
+        page,
+    }) => {
+        test.setTimeout(90_000);
+        await serveClip(page);
+        await selectPlayer(page);
+        await importPlaylist(page);
+        await page.setViewportSize({ width: 390, height: 844 });
+        const { controls } = await startClip(page);
+
+        await controls
+            .locator('[data-test-id="player-controls-settings-button"]')
+            .click();
+        const sheet = controls.getByRole('dialog', { name: 'Settings' });
+        const row = sheet.locator(
+            '[data-test-id="player-settings-video-player"]'
+        );
+        await expect(row).toBeVisible();
+        await expect(row).toContainText('HTML5');
+
+        await row.click();
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
+        await expect(
+            page.locator('[data-test-id="select-video-player"]')
+        ).toBeVisible();
+    });
 });

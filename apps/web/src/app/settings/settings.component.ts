@@ -27,7 +27,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
     RuntimeCapabilitiesService,
-    ServerStorageStatusService,
     injectTranslationTick,
 } from '@iptvnator/services';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
@@ -57,9 +56,9 @@ import {
 import { SettingsAppearanceSectionComponent } from './settings-appearance-section.component';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 import { SETTINGS_DEFAULT_SECTION, SettingsSection } from './settings.models';
+import { injectSettingsSectionNav } from './settings-section-nav';
 import {
     buildSettingsPlayerOptions,
-    buildSettingsSectionNavItems,
     SETTINGS_COVER_SIZE_OPTIONS,
     SETTINGS_EPG_VIEW_MODE_OPTIONS,
     SETTINGS_STARTUP_BEHAVIOR_OPTIONS,
@@ -188,9 +187,6 @@ export class SettingsComponent
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
-    readonly supportsServerStorage = inject(
-        ServerStorageStatusService
-    ).isActive();
     readonly supportsStartupWindowMode = this.runtime.supportsStartupWindowMode;
     readonly supportsPortalConnectivityGuard =
         this.runtime.supportsPortalConnectivityGuard;
@@ -252,11 +248,7 @@ export class SettingsComponent
     readonly updateChannelOptions = SETTINGS_UPDATE_CHANNEL_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
-    readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
-        supportsEpg: this.form.supportsEpgDisplay,
-        supportsRemoteControl: this.supportsRemoteControl,
-        supportsServerStorage: this.supportsServerStorage,
-    });
+    readonly sectionNavItems: SettingsSection[] = injectSettingsSectionNav();
 
     get sectionNav(): SettingsSection[] {
         return this.sectionNavItems.filter((section) => section.visible);

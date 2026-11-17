@@ -17,6 +17,7 @@ import type { ControlsMenuSelection } from './controls-menu-selection';
 import type { ControlsSettings } from './controls-settings';
 import type { ControlsSubtitleSettings } from './controls-subtitle-settings';
 import type { PlayerController } from './player-controls.model';
+import { PlayerSettingsVideoPlayerRowComponent } from './player-settings-video-player-row.component';
 import {
     SettingsRadioDirective,
     SettingsRadioGroupDirective,
@@ -47,6 +48,7 @@ let nextPanelId = 0;
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
+        PlayerSettingsVideoPlayerRowComponent,
         SettingsRadioDirective,
         SettingsRadioGroupDirective,
         TranslatePipe,

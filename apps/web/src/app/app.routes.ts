@@ -10,7 +10,6 @@ import {
     serverAccessGuard,
     serverSignInGuard,
 } from './server-storage/server-access.guard';
-import { settingsUnsavedChangesGuard } from './settings/settings-unsaved-changes.guard';
 
 // The workspace activates only once settings AND the parental lock state
 // (PIN, lock store) are known: before that the lock reads as off and a
@@ -188,27 +187,10 @@ export const routes: Routes = [
             },
             {
                 path: 'settings',
-                children: [
-                    {
-                        path: '',
-                        pathMatch: 'full',
-                        redirectTo: 'general',
-                    },
-                    {
-                        // One routed component for every section: the same
-                        // instance survives :section param changes (default
-                        // route reuse), so the settings form — and its dirty
-                        // state — persists while the user moves between
-                        // section pages. The guard only intercepts leaving
-                        // the settings area with unsaved edits.
-                        path: ':section',
-                        canDeactivate: [settingsUnsavedChangesGuard],
-                        loadComponent: () =>
-                            import('./settings/settings.component').then(
-                                (c) => c.SettingsComponent
-                            ),
-                    },
-                ],
+                loadChildren: () =>
+                    import('./settings/settings.routes').then(
+                        (m) => m.SETTINGS_ROUTES
+                    ),
             },
         ],
     },

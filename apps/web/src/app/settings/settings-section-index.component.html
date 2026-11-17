@@ -1,0 +1,50 @@
+<h1 class="section-index__title">{{ 'SETTINGS.TITLE' | translate }}</h1>
+<nav
+    class="section-index"
+    data-test-id="settings-section-index"
+    [attr.aria-label]="'SETTINGS.TITLE' | translate"
+>
+    @for (group of groups; track group.id) {
+        <h2 class="section-index__group">{{ group.labelKey | translate }}</h2>
+        @for (section of group.sections; track section.id) {
+            <ng-container
+                *ngTemplateOutlet="row; context: { $implicit: section }"
+            />
+        }
+    }
+    @if (footer.length > 0) {
+        <div class="section-index__footer">
+            @for (section of footer; track section.id) {
+                <ng-container
+                    *ngTemplateOutlet="row; context: { $implicit: section }"
+                />
+            }
+        </div>
+    }
+</nav>
+
+<ng-template #row let-section>
+    <a
+        class="section-index__row"
+        [routerLink]="['/workspace/settings', section.id]"
+        [attr.data-test-id]="'settings-index-' + section.id"
+    >
+        <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+        <span class="section-index__text">
+            <span class="section-index__label">{{
+                section.label | translate
+            }}</span>
+            @if (section.id === 'playback' && playerLabelKey(); as player) {
+                <span
+                    class="section-index__value"
+                    data-test-id="settings-index-player"
+                    >{{ 'SETTINGS.VIDEO_PLAYER_LABEL' | translate }} ·
+                    {{ player | translate }}</span
+                >
+            }
+        </span>
+        <mat-icon class="section-index__chevron" aria-hidden="true"
+            >chevron_right</mat-icon
+        >
+    </a>
+</ng-template>

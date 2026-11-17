@@ -19,6 +19,11 @@
 </div>
 
 <div class="player-settings__body">
+    @if (mode() === 'sheet') {
+        <app-player-settings-video-player-row
+            (navigated)="closeRequested.emit()"
+        />
+    }
     @if (groups().audio) {
         <section
             class="player-settings__group"
