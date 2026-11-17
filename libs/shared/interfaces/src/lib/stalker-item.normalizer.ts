@@ -69,7 +69,9 @@ export function isStalkerSeriesItem(item: {
 /**
  * Determine the normalised activity type of a Stalker item.
  *
- * - `itv` / `live` / radio → `'live'`
+ * - `itv` / `live` / radio → `'live'`, also for a favorite or recently viewed
+ *   entry saved from the live or radio section (`favoriteContentType`), which
+ *   keeps the channel's own genre in `category_id`
  * - `series` or `is_series` equal to `true`, `1`, or `'1'` → `'series'`
  * - everything else → `'movie'`
  *
@@ -84,9 +86,12 @@ export function extractStalkerItemType(
     const raw = item as Record<string, unknown>;
     const categoryId = String(raw['category_id'] ?? '').toLowerCase();
     const streamType = String(raw['stream_type'] ?? '').toLowerCase();
+    const savedFrom = String(raw['favoriteContentType'] ?? '').toLowerCase();
 
     if (
         categoryId === 'itv' ||
+        savedFrom === 'itv' ||
+        savedFrom === 'radio' ||
         streamType === 'live' ||
         isStalkerRadioItem(raw)
     ) {
