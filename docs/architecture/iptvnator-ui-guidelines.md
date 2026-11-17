@@ -1697,6 +1697,20 @@ but the component has not.
   loading or empty.
   The toggle's label is variant-aware — categories, filters, or settings
   sections — because a fixed label would misdescribe two of the three.
+- The header's search scope chip has no room at this width, so a search
+  inside a category gets a row of its own between the header and the
+  scroller (`app-workspace-shell-search-scope`, the content frame's second
+  grid row). Xtream shows a toggle, "Category · n | All categories · m",
+  counted from the streams the store already holds; switching to every
+  category keeps the term and remembers the category to switch back to.
+  Stalker searches VOD and series on the portal, so an all-category count
+  would cost a request: it shows the scope and an "All categories" action
+  instead. The shell creates the row only at the phone breakpoint, through
+  `injectPhoneLayout()` from the file-level entry
+  `@iptvnator/ui/components/phone-layout`, so wider screens never load its
+  stylesheet. Import it by that path, not through a barrel: the barrels are
+  in the startup bundle, which splits by module. The counts mirror the
+  store's filters in the lazy shell for the same reason.
 - Other side rails stack above the content instead of beside it: the
   live-layout channel sidebar and the M3U channel drawer. While nothing
   plays, the content pane holds only the "select a channel" placeholder, so

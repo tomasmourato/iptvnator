@@ -1,0 +1,86 @@
+@use '../../../../../../../../ui/styles/app-controls' as controls;
+
+// A row of its own between the header and the scroller (the content
+// frame's second grid row), so full-height pages keep their height.
+:host {
+    display: block;
+    min-width: 0;
+
+    &:empty {
+        display: none;
+    }
+}
+
+.search-scope__track,
+.search-scope__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--app-separator);
+}
+
+.search-scope__track {
+    @include controls.segmented-track;
+    display: flex;
+    flex-wrap: nowrap;
+    width: calc(100% - 24px);
+    margin: 8px 12px;
+    padding: 2px;
+}
+
+.search-scope__segment {
+    @include controls.segment(40px);
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+
+    &.is-selected {
+        @include controls.segment-selected;
+    }
+}
+
+.search-scope__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-scope__count {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+
+    &::before {
+        content: '·';
+        margin-inline-end: 6px;
+    }
+}
+
+.search-scope__row {
+    justify-content: space-between;
+    color: var(--app-muted-color);
+    font-size: 0.84rem;
+}
+
+.search-scope__link {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--app-selection-color);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}

@@ -22,6 +22,7 @@ import { WorkspaceShellContextSidebarComponent } from './components/workspace-sh
 import { WorkspaceShellHeaderComponent } from './components/workspace-shell-header/workspace-shell-header.component';
 import { WorkspaceShellImportOverlayComponent } from './components/workspace-shell-import-overlay/workspace-shell-import-overlay.component';
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
+import { WorkspaceShellSearchScopeComponent } from './components/workspace-shell-search-scope/workspace-shell-search-scope.component';
 import { WorkspaceShellServerBannerComponent } from './components/workspace-shell-server-banner/workspace-shell-server-banner.component';
 import { LayoutSlideDirective } from './layout-slide.directive';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
@@ -32,11 +33,14 @@ import { WorkspaceShellHeaderService } from './services/workspace-shell-header.s
 import { warmPlayerChunk } from './warm-player-chunk';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
+import { WorkspaceShellSearchScopeService } from './services/workspace-shell-search-scope.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceBackGesturesService } from '../workspace-back-gestures/workspace-back-gestures.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 import { WorkspaceLiveCategoriesPopoverService } from '../workspace-live-categories-popover/workspace-live-categories-popover.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+// File-level entry: the barrel is in the startup bundle.
+import { injectPhoneLayout } from '@iptvnator/ui/components/phone-layout';
 import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
 
 @Component({
@@ -54,6 +58,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellHeaderComponent,
         WorkspaceShellImportOverlayComponent,
         WorkspaceShellRailComponent,
+        WorkspaceShellSearchScopeComponent,
         WorkspaceShellServerBannerComponent,
     ],
     templateUrl: './workspace-shell.component.html',
@@ -64,6 +69,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellRouteStateService,
         WorkspaceShellSearchSyncService,
         WorkspaceShellSearchService,
+        WorkspaceShellSearchScopeService,
         WorkspaceShellHeaderService,
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
@@ -83,6 +89,8 @@ export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
     readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
+    readonly searchScope = inject(WorkspaceShellSearchScopeService);
+    readonly isPhone = injectPhoneLayout();
     private readonly mpvOverlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
     );

@@ -20,6 +20,7 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { LayoutSlideDirective } from './layout-slide.directive';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
+import { WorkspaceShellSearchScopeService } from './services/workspace-shell-search-scope.service';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
@@ -290,6 +291,10 @@ describe('WorkspaceShellComponent', () => {
                             },
                         },
                         WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
                     ],
                 },
             })
@@ -388,6 +393,10 @@ describe('WorkspaceShellComponent', () => {
                             },
                         },
                         WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
                     ],
                 },
             })
@@ -468,6 +477,10 @@ describe('WorkspaceShellComponent', () => {
                             },
                         },
                         WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
                     ],
                 },
             })
@@ -544,6 +557,10 @@ describe('WorkspaceShellComponent', () => {
                             },
                         },
                         WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
                     ],
                 },
             })
@@ -646,6 +663,10 @@ describe('WorkspaceShellComponent', () => {
                             },
                         },
                         WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
                     ],
                 },
             })

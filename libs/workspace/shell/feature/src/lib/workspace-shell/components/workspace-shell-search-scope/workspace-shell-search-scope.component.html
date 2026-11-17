@@ -1,0 +1,55 @@
+@if (scope.view(); as view) {
+    @if (view.mode === 'toggle') {
+        <div
+            class="search-scope__track"
+            role="group"
+            [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
+            data-test-id="workspace-search-scope"
+        >
+            <button
+                type="button"
+                class="search-scope__segment"
+                [class.is-selected]="view.category.active"
+                [attr.aria-pressed]="view.category.active"
+                data-test-id="workspace-search-scope-category"
+                (click)="scope.selectCategory()"
+            >
+                <span class="search-scope__label">{{
+                    view.category.label
+                }}</span>
+                <span class="search-scope__count">{{
+                    view.category.count
+                }}</span>
+            </button>
+            <button
+                type="button"
+                class="search-scope__segment"
+                [class.is-selected]="view.all.active"
+                [attr.aria-pressed]="view.all.active"
+                data-test-id="workspace-search-scope-all"
+                (click)="scope.selectAll()"
+            >
+                <span class="search-scope__label">{{
+                    'PORTALS.ALL_CATEGORIES' | translate
+                }}</span>
+                <span class="search-scope__count">{{ view.all.count }}</span>
+            </button>
+        </div>
+    } @else {
+        <div class="search-scope__row" data-test-id="workspace-search-scope">
+            <span class="search-scope__label">{{ view.scopeLabel }}</span>
+            <button
+                type="button"
+                class="search-scope__link"
+                data-test-id="workspace-search-scope-all"
+                [attr.aria-label]="
+                    'WORKSPACE.SHELL.CLEAR_CATEGORY_FILTER' | translate
+                "
+                (click)="scope.selectAll()"
+            >
+                {{ 'PORTALS.ALL_CATEGORIES' | translate }}
+                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            </button>
+        </div>
+    }
+}
