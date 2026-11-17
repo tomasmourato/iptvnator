@@ -93,9 +93,10 @@ app-workspace-shell-context-sidebar {
 
     position: relative;
     display: grid;
-    // Server banner (empty unless the self-hosted server is offline), then
-    // the scroller.
-    grid-template-rows: auto minmax(0, 1fr);
+    // Server banner (empty unless the self-hosted server is offline), the
+    // phone search scope row (absent unless a phone searches in a
+    // category), then the scroller, pinned to the last row.
+    grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
@@ -135,6 +136,7 @@ app-workspace-shell-context-sidebar {
 }
 
 .workspace-content {
+    grid-row: 3;
     position: relative;
     z-index: 0;
     min-width: 0;
