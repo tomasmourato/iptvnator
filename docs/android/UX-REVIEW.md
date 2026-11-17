@@ -350,3 +350,34 @@ One feature per commit. Each batch:
 
 Batches 1–5 come first. The guide's phone rules from P4 (search sheet, narrower
 channel column, toolbar) move to batch 3 if they fit, otherwise to a later batch.
+
+## 7. Implementation status (2026-11-17)
+
+Batches 1–5 are done, one commit per feature. Before/after captures from the
+phone AVD are in `<root>/after/` (`b1-` … `b5f-`).
+
+| Batch | Commit | Result |
+|---|---|---|
+| 1 Touch hints | `bbed24c6d` | `Ctrl+K`, the shortcuts button and key caps hidden on `(pointer: coarse)`; E2E at 844×390 and 915×412 |
+| 2 Scope on phones | `4e0409080` | Xtream toggle "Newsroom · 2 \| All categories · 6", both ways; Stalker gets the "All categories" link (its VOD and series search runs on the portal, so an all-category count would cost a request per search) |
+| 3 Live tabs | `01bac7135` | Player on top at 16:9 with Channels / Programme guide tabs (Xtream, Stalker, M3U); playing video 115 → 231px |
+| 4 Settings | `ce648960b` | Section list on phones with the current player on the Playback row; "Video player" row in the player's settings sheet on touch screens |
+| 5 System theme | `61c5b8498` | Touch mode answers the page's `prefers-color-scheme` from Android's dark theme (the WebView reports light whatever the setting); live changes included |
+| 5 Live typed as movie | `50412a447` | Stalker entries saved from live or radio are typed live (the hero read "MOVIE") |
+| 5 Landscape inline player | `9d6c0d7e2` | Video and controls fit under the header at 864×359 |
+| 5 Dialog footer | `3a08d7f52` | Add-playlist footer on three rows instead of four |
+| 5 Sticky hover | `bddc0cf34` | Row and method-card hover fills need `(hover: hover)` |
+| 5 Guide strip error | `6e42d6956` | A player under 200px tall shows the badge and a one-line headline |
+| 5 Breakpoints | `896e29780` | 599px rules moved to 640px; two dead rules removed |
+
+- **Launch initial bytes:** 1,201,053 before batch 1, 1,200,860 after batch 5
+  (−193). Batch 4 moved the settings routes out of the startup bundle (−267);
+  the Stalker type fix added 74 (the normalizer is in that bundle). Still over
+  the ratchet limit (1,200,301), as recorded in PROGRESS.md.
+- **New file-level entries:** `@iptvnator/ui/components/phone-layout` and
+  `@iptvnator/ui/components/live-phone-tabs` (barrels sit in the startup bundle,
+  which splits by module).
+- **Not run:** Firefox and WebKit E2E (browsers not installed here); the TV AVD
+  (the shell changes only run in touch mode).
+- **Next:** batches 6–8 (bottom bar, search placement, compact landscape) behind
+  the shell touch capability, after the upstream issue.
