@@ -154,3 +154,9 @@ kbd {
     margin-left: 6px;
     color: $text-secondary;
 }
+
+@media (pointer: coarse) {
+    kbd {
+        display: none;
+    }
+}

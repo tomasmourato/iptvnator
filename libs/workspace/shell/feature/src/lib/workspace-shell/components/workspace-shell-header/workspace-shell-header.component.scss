@@ -551,6 +551,24 @@
     }
 }
 
+// Keyboard-only affordances follow the pointer, not the width: a phone in
+// landscape is wider than the phone breakpoint and still has no Ctrl key.
+@media (pointer: coarse) {
+    .search-field {
+        .command-trigger__shortcut {
+            display: none;
+        }
+
+        .command-trigger__icon {
+            display: inline-flex;
+        }
+    }
+
+    .header-actions--leading .shortcuts-trigger {
+        display: none;
+    }
+}
+
 .header-shortcut.is-active {
     background: var(--app-selection-surface);
     color: var(--app-selection-color);

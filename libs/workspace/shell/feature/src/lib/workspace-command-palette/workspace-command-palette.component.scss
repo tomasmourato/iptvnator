@@ -224,3 +224,10 @@
     font-size: 0.82rem;
     opacity: 0.7;
 }
+
+// The shortcut that opens the palette means nothing without a keyboard.
+@media (pointer: coarse) {
+    .palette-search__kbd {
+        display: none;
+    }
+}
