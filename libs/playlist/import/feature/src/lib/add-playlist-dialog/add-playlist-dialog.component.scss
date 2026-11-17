@@ -142,3 +142,31 @@
         line-height: 1.45;
     }
 }
+
+// Phone: the dialog kit stacks one full-width action per row, which here is
+// four rows (Clear, Cancel, Test, Add) under the Xtream notice. Keep the
+// filled actions full width, primary first, and put the two text actions
+// side by side on one row below them.
+@media (max-width: 480px) {
+    app-add-playlist .app-dialog__footer {
+        flex-flow: row wrap;
+
+        .apd-connection-notice {
+            order: -3;
+        }
+
+        .mat-mdc-unelevated-button {
+            flex: 1 1 100%;
+            order: -1;
+
+            &:not(.app-dialog__secondary) {
+                order: -2;
+            }
+        }
+
+        .mat-mdc-button {
+            flex: 1 1 0;
+            width: auto;
+        }
+    }
+}
