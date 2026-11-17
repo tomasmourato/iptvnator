@@ -32,8 +32,12 @@
     text-align: start;
     cursor: pointer;
 
-    &:hover:not(:disabled):not(.active) {
-        background: var(--app-card-hover-bg);
+    // A touch screen keeps :hover on the tapped card (hover fills need a
+    // pointer that hovers).
+    @media (hover: hover) {
+        &:hover:not(:disabled):not(.active) {
+            background: var(--app-card-hover-bg);
+        }
     }
     &.active {
         background: var(--app-list-selected-bg);
