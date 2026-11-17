@@ -703,3 +703,21 @@ The new test and `android-protocol-discovery` close every Playwright device.
 With a second adb device attached (the physical phone), closing only their
 own device kept the process alive. That is the "hang in `device.close()`"
 harness limit above. The other suites still have it.
+
+### Next (follow-ups, one commit each)
+1. **Renderer crash on the TV emulator with the large synthetic Series
+   catalogue.** In `android-large-catalog.mjs` on `TvShell_TV_API34`, the
+   WebView renderer crashes after both 91 MiB answers arrive, while the series
+   tab loads. It does the same with the parent commit's APK. Investigate
+   renderer memory (streaming or partial parse, partial import) before
+   proposing the large-catalog fix upstream. The tablet passes.
+2. **Emulator suites hang while a physical phone is connected to adb.**
+   `android-bridge`, `android-touch` and `android-background-media` close only
+   their own Playwright device. With a second adb device attached they never
+   exit. Apply the fix from `android-loopback-secret.mjs`: keep the list from
+   `_android.devices()` and close every entry.
+3. **`android-touch` step 7 on API 37.** Back after the settings shortcut is
+   sent as soon as `SettingsActivity` is resumed, and on API 37 it doesn't
+   return to the page. Done by hand with a 3 s pause it works, so it looks
+   like a timing problem in the test. Make the step wait until the settings
+   window has focus before pressing Back.
