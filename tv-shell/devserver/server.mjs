@@ -14,7 +14,10 @@
  *       GET  /api/xtream?targetId=&...params
  *       GET  /api/stalker?targetId=&macAddress=&token=&serialNumber=&...params
  *
- * Usage: node server.mjs --www <dir> [--port 43330] [--tv <tv.js>] [--open-external]
+ * With --api-secret <value>, every /api request must carry the X-TvShell-Api header, as in the
+ * APK (see api-secret.mjs); off by default, since a desktop browser has no shell to add it.
+ *
+ * Usage: node server.mjs --www <dir> [--port 43330] [--tv <tv.js>] [--open-external] [--api-secret <value>]
  */
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -22,6 +25,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { join, extname, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { API_SECRET_HEADER, hasApiSecret } from './api-secret.mjs';
 import { fetchText, stalkerHeaders, stalkerUrl, normalizeXtreamServerUrl, extractDrmFromRaw } from './backend-logic.mjs';
 
 const require = createRequire(import.meta.url);
@@ -37,6 +41,7 @@ const PORT = Number(opt('--port', '43330'));
 const TV_JS = resolve(opt('--tv', join(__dirname, '..', 'android', 'app', 'src', 'main', 'assets', 'tvshell', 'tv.js')));
 // Touch interface (phones, tablets), as ShellSite serves it in the APK's touch mode.
 const TOUCH = args.includes('--touch') || process.env.TVSHELL_TOUCH === '1';
+const API_SECRET = opt('--api-secret', null);
 const PROVIDER_ORIGINS = [
     `http://127.0.0.1:${process.env.MOCK_PORT || '43331'}`,
     ...(process.env.TVSHELL_PROVIDER_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
@@ -171,7 +176,11 @@ function proxyParams(query, excluded) {
     return params;
 }
 
-export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS) {
+export async function handleApi(req, res, url, allowedOrigins = PROVIDER_ORIGINS, secret = API_SECRET) {
+    if (secret && !hasApiSecret(req.headers[API_SECRET_HEADER], secret)) {
+        res.setHeader('Connection', 'close');
+        return json(res, 403, { message: 'Forbidden', status: 403 });
+    }
     const path = url.pathname.replace(/^\/api/, '') || '/';
     const query = url.searchParams;
 

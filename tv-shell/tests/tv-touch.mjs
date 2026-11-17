@@ -3,6 +3,9 @@
  * Run a touch dev server next to run-dev.sh's mock provider, then:
  *   node tv-shell/devserver/server.mjs --www dist/apps/web --port 43332 --touch
  *   node tv-shell/tests/tv-touch.mjs [--url http://127.0.0.1:43332] [--shots dir]
+ * With a dev server started with --api-secret <value>, set TVSHELL_API_SECRET=<value>: the suite
+ * injects the APK's /api script (assets/tvshell/api-secret.js) before any page script, as the
+ * shell does natively.
  */
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -22,6 +25,10 @@ mkdirSync(SHOTS, { recursive: true });
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ ...devices['Pixel 7'] });
+if (process.env.TVSHELL_API_SECRET) {
+    const { apiSecretScript } = await import('../devserver/api-secret.mjs');
+    await context.addInitScript(apiSecretScript(process.env.TVSHELL_API_SECRET));
+}
 const page = await context.newPage();
 let failures = 0;
 const check = (c, m) => { if (!c) failures++; console.log((c ? '  ✓ ' : '  ✗ ') + m); };

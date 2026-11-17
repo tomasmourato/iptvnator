@@ -6,6 +6,7 @@ import android.util.Log;
 
 import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.ShellApp;
+import org.tvshell.iptvnator.backend.ApiSecret;
 import org.tvshell.iptvnator.backend.DiagnosticRedactor;
 import org.tvshell.iptvnator.backend.ShellSite;
 import org.tvshell.iptvnator.backend.WebBackend;
@@ -19,6 +20,7 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -30,6 +32,8 @@ import fi.iki.elonen.NanoHTTPD;
  * </ul>
  * Bound to 127.0.0.1 only. The port is fixed per device (see {@link Prefs})
  * because the web app's storage (IndexedDB, localStorage) belongs to the origin.
+ * Every {@code /api} request must carry the launch's {@link ApiSecret} header, which only the
+ * shell's own WebView adds: other apps on the device get a 403.
  */
 public final class TvShellServer extends NanoHTTPD {
 
@@ -37,13 +41,17 @@ public final class TvShellServer extends NanoHTTPD {
     private final ShellSite site;
     private final WebBackend backend;
     private final int port;
+    private final ApiSecret secret;
+    /** One log line per launch: another app could otherwise fill the log with refusals. */
+    private static final AtomicBoolean refusalLogged = new AtomicBoolean();
     /** Same bound as the upstream web backend (express.json limit 16kb): only tiny JSON bodies are legitimate. */
     private static final long MAX_API_BODY_BYTES = 16 * 1024;
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
-    public TvShellServer(Context context, Prefs prefs, int port) {
+    public TvShellServer(Context context, Prefs prefs, int port, ApiSecret secret) {
         super("127.0.0.1", port);
         this.port = port;
+        this.secret = secret;
         this.assets = context.getApplicationContext().getAssets();
         this.site = new ShellSite(new ShellSite.AssetSource() {
             @Override
@@ -159,6 +167,16 @@ public final class TvShellServer extends NanoHTTPD {
         String uri = session.getUri();
         try {
             if (uri.startsWith("/api")) {
+                // Before anything else, the body included: a request without the secret gets nothing.
+                if (!secret.allows(session.getHeaders().get("x-tvshell-api"))) {
+                    if (refusalLogged.compareAndSet(false, true)) {
+                        Log.w(ShellApp.TAG, "refused an /api request without the shell secret (later refusals are not logged)");
+                    }
+                    WebBackend.Response r = ApiSecret.forbidden();
+                    Response refused = newFixedLengthResponse(status(r.status), r.contentType, r.openBody(), r.bodyLength());
+                    for (Map.Entry<String, String> header : r.headers.entrySet()) refused.addHeader(header.getKey(), header.getValue());
+                    return close(refused);
+                }
                 String sub = uri.substring(4);
                 String body = null;
                 Method method = session.getMethod();

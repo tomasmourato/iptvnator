@@ -94,6 +94,8 @@ public class MainActivity extends Activity {
     private TextView errorText;
     private Prefs prefs;
     private TvShellServer server;
+    private final LoopbackFilter loopback = new LoopbackFilter();
+    private ApiScript apiScript;
     private boolean resumed;
     private boolean pageReady;
     private boolean pageFinished;
@@ -233,6 +235,11 @@ public class MainActivity extends Activity {
                     toast(getString(R.string.cannot_open_link));
                 }
                 return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return loopback.intercept(request);
             }
 
             @Override
@@ -397,16 +404,24 @@ public class MainActivity extends Activity {
             showError(getString(R.string.server_error));
             return;
         }
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
+            || !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             showError(getString(R.string.webview_bridge_unavailable));
             return;
         }
         bindBridge();
+        // Before loadUrl: the page's first /api request (the bootstrap probe) already carries the secret.
+        if (apiScript == null) apiScript = new ApiScript(this);
+        if (!apiScript.bind(webView, server)) {
+            showError(getString(R.string.api_script_error));
+            return;
+        }
         if (ShellApp.onFallbackPort()) toast(getString(R.string.port_fallback, prefs.serverPort(), server.port()));
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(loadedScreenWidth);
         server.setTouchMode(touchMode);
         chrome.setTouch(touchMode);
+        loopback.setShellPort(server.port());
         // After a process restart the route the user was on (the SPA fallback serves it); else the root.
         String url = restoreUrl != null && restoreUrl.startsWith(server.baseUrl()) ? restoreUrl : server.baseUrl();
         restoreUrl = null;

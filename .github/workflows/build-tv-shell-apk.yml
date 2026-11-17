@@ -142,9 +142,11 @@ jobs:
             cat "$LOG"
             exit 1
           fi
-          # The touch suite needs a second dev server in touch mode (the same mock provider).
+          # The touch suite needs a second dev server in touch mode (the same mock provider). It
+          # requires the per-launch /api secret like the APK; the suite injects the APK's script.
           TOUCH_LOG="$RUNNER_TEMP/devserver-touch.log"
-          node "$SHELL_DIR/devserver/server.mjs" --www "$WWW" --port 43332 --touch > "$TOUCH_LOG" 2>&1 &
+          TOUCH_SECRET="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))")"
+          node "$SHELL_DIR/devserver/server.mjs" --www "$WWW" --port 43332 --touch --api-secret "$TOUCH_SECRET" > "$TOUCH_LOG" 2>&1 &
           TOUCH_PID=$!
           trap 'kill "$DEV_PID" "$TOUCH_PID" 2>/dev/null || true' EXIT
           for _ in $(seq 1 30); do
@@ -155,7 +157,7 @@ jobs:
           status=0
           node "$SHELL_DIR/tests/tv-remote.mjs" --shots "$SHOTS/remote" || status=1
           node "$SHELL_DIR/tests/tv-longlist.mjs" --shots "$SHOTS/longlist" || status=1
-          node "$SHELL_DIR/tests/tv-touch.mjs" --shots "$SHOTS/touch" || status=1
+          TVSHELL_API_SECRET="$TOUCH_SECRET" node "$SHELL_DIR/tests/tv-touch.mjs" --shots "$SHOTS/touch" || status=1
           if [ "$status" != 0 ]; then
             echo "--- dev server log"
             cat "$LOG"

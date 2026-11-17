@@ -192,9 +192,29 @@ and actual playlist titles.
   forwarding their original text; each diagnostic is capped at 4,000 characters.
 - Cleartext traffic is allowed on purpose: the app's own origin is
   `http://127.0.0.1` and most IPTV portals and streams are plain `http`.
-- Known limitation: any other app on the device can reach the loopback server
-  and make it fetch provider URLs. There is no secret between the WebView and
-  the server yet.
+- **Per-launch `/api` secret**: other apps on the device can reach the loopback
+  port, so every `/api` request must carry the launch's secret in the
+  `X-TvShell-Api` header (`ApiSecret`: 256 random bits, made when the process
+  starts, compared in constant time). Without it the server answers 403 before
+  reading the body, and logs one line per launch, without the value. It never
+  answers 401, which the web app would read as a server sign-in prompt.
+- Only the shell's WebView holds the secret. Before `loadUrl`, AndroidX WebKit
+  registers `assets/tvshell/api-secret.js` as a document-start script, only for
+  the origin the server is bound to (the saved port, or a fallback port for the
+  run). The local server never serves the script.
+- The script adds the header to same-origin `/api` requests made with `fetch` or
+  `XMLHttpRequest`, the only way the web app calls its backend, and keeps the
+  value in a closure. Nothing sends it automatically, unlike a cookie, so a
+  redirect or a playlist or logo URL pointing at another local server never
+  carries it.
+- The script is registered before the page loads, so the bootstrap probe of
+  `/api/v1/instance` is never refused. A refusal there would leave the app in
+  server mode. WebViews without document-start scripts show the update prompt.
+- **Other local backends**: the WebView refuses page requests for `/api` or
+  `/api/...` on a loopback host (`127.0.0.0/8`, `localhost`, `::1`, mapped
+  forms) on any port but its own (`LoopbackGuard`). This is defense in depth.
+  Streams and logos that another app on the device serves, such as a local IPTV
+  proxy, still load.
 
 ## Building the APK
 
@@ -363,6 +383,10 @@ node tv-shell/tests/tv-remote.mjs ; node tv-shell/tests/tv-longlist.mjs
 # touch mode (phone emulation) against a second dev server serving the touch page
 node tv-shell/devserver/server.mjs --www /path/to/dist/apps/web --port 43332 --touch
 node tv-shell/tests/tv-touch.mjs
+# the same with the APK's per-launch /api secret (the workflow runs it this way): the dev
+# server requires the X-TvShell-Api header, the suite injects assets/tvshell/api-secret.js
+node tv-shell/devserver/server.mjs --www /path/to/dist/apps/web --port 43332 --touch --api-secret "$SECRET"
+TVSHELL_API_SECRET="$SECRET" node tv-shell/tests/tv-touch.mjs
 
 # touch mode on a phone or tablet emulator (viewport, pinch, rotation, bars,
 # fullscreen, keyboard, launcher shortcut); keep run-dev.sh running for the mock
@@ -371,6 +395,11 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-touch.mjs emulator-5554 [-
 # native document-picker regression: a debug APK must already be installed
 # on an English-language Android emulator (physical devices are excluded)
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-5554
+
+# per-launch /api secret: cold starts, other local servers (direct and redirected),
+# adb forward / adb shell requests, a previous launch's secret, a fallback port;
+# clears the app's data
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-loopback-secret.mjs emulator-5554
 
 # native bridge isolation and main-frame commands
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-bridge.mjs emulator-5554
@@ -400,7 +429,8 @@ tv-shell/
 │   ├── backend/             pure-Java library: M3U parser, /api routes, Xtream/Stalker helpers (+ JVM tests)
 │   └── app/                 Android app: NanoHTTPD server, WebView, settings, JS bridge, external player
 │       ├── debug.keystore   versioned debug signing key (password "android")
-│       └── src/main/assets/tvshell/   tv.js (the remote-control layer) and THIRD-PARTY-NOTICES.txt
+│       └── src/main/assets/tvshell/   tv.js (the remote-control layer), api-secret.js (the /api
+│                                      header script, injected natively) and THIRD-PARTY-NOTICES.txt
 ├── devserver/               reference backend in Node + mock provider, to develop and test on a PC
 ├── tests/                   Playwright tests: driving the real app with remote keys and touch
 ├── tools/                   parser fixture generator (from the real JS parser)
@@ -416,8 +446,9 @@ tv-shell/
 - Playlists larger than an eighth of the app's memory (about 32 MB on a 1 GB
   stick) and portal answers larger than a quarter of it (about 64 MB there,
   128 MB on a phone) are refused with `ERR_RESPONSE_TOO_LARGE`.
-- The loopback server is reachable by other apps on the device (see the
-  security model).
+- Other apps on the device can still connect to the loopback port, but every
+  `/api` route answers them 403 (see the security model). The bundled PWA's
+  static files stay readable: they hold no secrets.
 - Touch mode: a phone in landscape is wider than the app's 640 px phone
   breakpoint, so the desktop header (with its `Ctrl+K` and keyboard-shortcut
   hints) comes back. The launcher shortcut names the package

@@ -6,6 +6,7 @@
     <string name="load_error_title">Le lecteur n\'a pas pu être chargé</string>
     <string name="load_error">Erreur : %1$s (code %2$s)</string>
     <string name="server_error">Le serveur embarqué n\'a pas pu démarrer (aucun port libre).</string>
+    <string name="api_script_error">L\'application n\'a pas pu sécuriser sa connexion au serveur embarqué.</string>
     <string name="load_timeout">L\'application web n\'a pas démarré à temps. Le WebView de cet appareil est peut-être trop ancien pour IPTVnator (moteur Chrome 94 ou plus récent requis). Le diagnostic est ci-dessous.</string>
     <string name="webview_unavailable">La vue web du système est indisponible (mise à jour en cours, ou désactivée). Réessayez dans une minute, ou mettez à jour Amazon WebView / Android System WebView.</string>
     <string name="webview_bridge_unavailable">Mettez à jour Amazon WebView ou Android System WebView pour activer les commandes sécurisées d’IPTVnator.</string>

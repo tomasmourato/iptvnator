@@ -4,7 +4,10 @@ import android.app.Application;
 import android.os.SystemClock;
 import android.util.Log;
 
+import org.tvshell.iptvnator.backend.ApiSecret;
 import org.tvshell.iptvnator.server.TvShellServer;
+
+import java.security.SecureRandom;
 
 /** Starts the embedded server as soon as the process exists. */
 public class ShellApp extends Application {
@@ -12,6 +15,8 @@ public class ShellApp extends Application {
     public static final String TAG = "TvShell";
 
     private static TvShellServer server;
+    /** Created with the process, so each launch has its own; a re-bound server keeps it. */
+    private static final ApiSecret API_SECRET = ApiSecret.generate(new SecureRandom());
     private static boolean fallbackPort;
     /** The remembered port is tried a few times: a collision with a short-lived socket clears quickly. */
     private static final int PREFERRED_PORT_ATTEMPTS = 3;
@@ -74,7 +79,7 @@ public class ShellApp extends Application {
 
     private TvShellServer tryBind(Prefs prefs, int port) {
         if (port <= 0) return null;
-        TvShellServer candidate = new TvShellServer(this, prefs, port);
+        TvShellServer candidate = new TvShellServer(this, prefs, port, API_SECRET);
         try {
             candidate.start();
             return candidate;
@@ -87,6 +92,11 @@ public class ShellApp extends Application {
     /** True while this run serves on another port than the one the web app's data lives on. */
     public static boolean onFallbackPort() {
         return server != null && fallbackPort;
+    }
+
+    /** The secret the WebView's /api requests must carry (see {@code ui.ApiScript}). */
+    public static ApiSecret apiSecret() {
+        return API_SECRET;
     }
 
     public static TvShellServer currentServer() {
