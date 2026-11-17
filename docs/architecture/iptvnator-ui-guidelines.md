@@ -1776,6 +1776,14 @@ but the component has not.
   stylesheet. Import it by that path, not through a barrel: the barrels are
   in the startup bundle, which splits by module. The counts mirror the
   store's filters in the lazy shell for the same reason.
+- Settings open on a section list at the phone breakpoint
+  (`SettingsSectionIndexComponent`, matched only on a phone by
+  `settings.routes.ts`): every section with its icon, and the default video
+  player on the Playback row. Sections open as history entries, so Back
+  returns to the list; wider screens still open General. The drawer keeps
+  the same sections for moving between pages. The player's settings sheet
+  starts with a "Video player" row on touch screens that opens Settings ›
+  Playback, where a phone user looks when playback goes wrong.
 - Other side rails stack above the content instead of beside it: the
   live-layout channel sidebar and the M3U channel drawer. While nothing
   plays, the content pane holds only the "select a channel" placeholder, so
