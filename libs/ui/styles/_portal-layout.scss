@@ -264,6 +264,60 @@
             flex-shrink: 1;
             min-height: 0;
         }
+
+        // Playing: the player goes on top at 16:9, then the list fills the
+        // rest. With a guide, `app-live-phone-tabs` sits between them and
+        // its host's `data-pane` shows the list or the guide, one at a time,
+        // instead of three panes sharing the screen. The multi-channel guide
+        // (`.epg-guide-host`) keeps its own dock layout.
+        $playing: '.content-container:has(> .video-player):not(:has(> .epg-guide-host))';
+
+        #{$playing} {
+            order: -1;
+            flex: 0 0 auto;
+            height: auto;
+            min-height: 0;
+
+            > .video-player {
+                flex: 0 0 auto;
+                aspect-ratio: 16 / 9;
+                max-height: 50vh;
+                min-height: 0;
+            }
+        }
+
+        .sidebar:not(.sidebar-collapsed):has(
+                + .content-container > .video-player
+            ) {
+            flex: 1 1 auto;
+            height: auto;
+            max-height: none !important;
+        }
+
+        #{$playing}:has(> app-live-phone-tabs[data-pane='channels']) > .epg {
+            // Out of sight but laid out at full width: a guide hidden with
+            // `display: none` starts at zero width and its timeline cannot
+            // scroll to the current programme.
+            position: absolute;
+            inset: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .sidebar:has(
+            + .content-container > app-live-phone-tabs[data-pane='guide']
+        ) {
+            display: none;
+        }
+
+        #{$playing}:has(> app-live-phone-tabs[data-pane='guide']) {
+            flex: 1 1 auto;
+
+            > .epg {
+                flex: 1 1 auto;
+                min-height: 0;
+            }
+        }
     }
 
     // The player's floor, not the list's ceiling, is what has to hold — but
@@ -274,6 +328,16 @@
     @media (max-width: 640px) and (min-height: 600px) {
         .content-container {
             min-height: 240px;
+        }
+    }
+
+    // A short phone has to fit the playing player, the tabs and the list's
+    // 72px floor: half the screen for the player would leave the list none.
+    @media (max-width: 640px) and (max-height: 599px) {
+        // The same selector as the playing rule above, which it overrides.
+        .content-container:has(> .video-player):not(:has(> .epg-guide-host))
+            > .video-player {
+            max-height: 35vh;
         }
     }
 }

@@ -188,20 +188,37 @@ async function expectLastRowReachable(list: Locator): Promise<void> {
         .toBeLessThanOrEqual(1);
 }
 
-/** Playing: both panes show, the list keeps its floor, the player fits. */
+/**
+ * Playing: the player sits on top at 16:9 (capped at half the screen, a
+ * third on a short one) and
+ * the list fills the rest of the pane below it, keeping its floor. Before,
+ * the list kept 42vh above a player squeezed to about 100px.
+ */
 async function expectPlayingSplit(
+    page: Page,
     layout: Locator,
     viewportHeight: number
 ): Promise<void> {
     const content = layout.locator('.content-container');
     await expect(content).toBeVisible();
     await expect(content.locator('app-web-player-view')).toBeVisible();
-    const sidebarBox = await boxOf(layout.locator('.sidebar'));
-    expect(sidebarBox.height).toBeGreaterThanOrEqual(71);
-    const contentBox = await boxOf(content);
-    expect(contentBox.y + contentBox.height).toBeLessThanOrEqual(
-        viewportHeight + 1
-    );
+    const player = await boxOf(content.locator('> .video-player'));
+    expect(
+        Math.abs(
+            player.height -
+                Math.min(
+                    (player.width * 9) / 16,
+                    viewportHeight * (viewportHeight < 600 ? 0.35 : 0.5)
+                )
+        )
+    ).toBeLessThanOrEqual(2);
+    const list = await boxOf(layout.locator('.sidebar'));
+    expect(list.y).toBeGreaterThanOrEqual(player.y + player.height - 1);
+    expect(list.height).toBeGreaterThanOrEqual(71);
+    const pane = await boxOf(page.locator('main.workspace-content'));
+    expect(
+        Math.abs(list.y + list.height - (pane.y + pane.height))
+    ).toBeLessThanOrEqual(1);
 }
 
 async function favoriteFirstMovies(page: Page, count: number): Promise<void> {
@@ -533,7 +550,7 @@ test.describe('xtream portal routes on a phone', () => {
         // the still-expanded sidebar to zero height on a 640x360 screen,
         // leaving no way to pick another channel, and pushed the layout past
         // the viewport. The player container has to end inside it.
-        await expectPlayingSplit(layout, LANDSCAPE_PHONE.height);
+        await expectPlayingSplit(page, layout, LANDSCAPE_PHONE.height);
         const contentBox = await boxOf(layout.locator('.content-container'));
         expect(contentBox.width).toBeLessThanOrEqual(LANDSCAPE_PHONE.width);
 
@@ -557,7 +574,7 @@ test.describe('xtream portal routes on a phone', () => {
         await expectLastRowReachable(list);
 
         await list.locator('[data-test-id="channel-item"]').first().click();
-        await expectPlayingSplit(layout, PHONE.height);
+        await expectPlayingSplit(page, layout, PHONE.height);
         await expectLastRowReachable(list);
         await expectNoHorizontalOverflow(page, PHONE.width);
     });
@@ -600,7 +617,7 @@ test.describe('m3u and stalker live lists on a phone', () => {
         await expectIdleListFillsPane(page, layout);
 
         await channel.click();
-        await expectPlayingSplit(layout, PHONE.height);
+        await expectPlayingSplit(page, layout, PHONE.height);
         await expectNoHorizontalOverflow(page, PHONE.width);
     });
 
@@ -621,7 +638,7 @@ test.describe('m3u and stalker live lists on a phone', () => {
         await expectIdleListFillsPane(page, layout);
 
         await channel.click();
-        await expectPlayingSplit(layout, PHONE.height);
+        await expectPlayingSplit(page, layout, PHONE.height);
         await expectNoHorizontalOverflow(page, PHONE.width);
     });
 });

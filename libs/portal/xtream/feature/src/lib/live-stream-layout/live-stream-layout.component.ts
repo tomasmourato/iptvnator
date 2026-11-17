@@ -132,6 +132,8 @@ import { scheduleKey } from './xtream-guide-schedules';
 import { retainXtreamPlayingSchedule } from './xtream-guide-now-playing';
 import { XtreamTuneRequests } from './xtream-tune-requests.service';
 import { toSharedEpgProgram } from '../portal-channels-list/epg-preview-program';
+// File-level entry: the @iptvnator/ui/components barrel is in the startup bundle.
+import { LivePhoneTabsComponent } from '@iptvnator/ui/components/live-phone-tabs';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -156,6 +158,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
         },
     ],
     imports: [
+        LivePhoneTabsComponent,
         EpgGuideComponent,
         EpgGuideNowPlayingComponent,
         EpgListViewComponent,

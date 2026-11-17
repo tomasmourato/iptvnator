@@ -55,6 +55,7 @@ import {
     StubSidebarComponent,
     StubWebPlayerViewComponent,
 } from './video-player.spec-stubs';
+import { LivePhoneTabsComponent } from '@iptvnator/ui/components/live-phone-tabs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -172,6 +173,8 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
                 set: {
                     imports: [
                         AsyncPipe,
+                        // Renders nothing off a phone (JSDOM has no matchMedia).
+                        LivePhoneTabsComponent,
                         StubAudioPlayerComponent,
                         StubChannelListLoadingStateComponent,
                         StubEpgGuideComponent,

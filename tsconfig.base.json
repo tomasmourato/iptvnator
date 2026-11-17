@@ -137,6 +137,9 @@
             "@iptvnator/ui/components/dialog-size": [
                 "libs/ui/components/src/lib/dialog-shell/dialog-size.ts"
             ],
+            "@iptvnator/ui/components/live-phone-tabs": [
+                "libs/ui/components/src/lib/live-phone-tabs/live-phone-tabs.component.ts"
+            ],
             "@iptvnator/ui/components/phone-layout": [
                 "libs/ui/components/src/lib/phone-layout/phone-layout.ts"
             ],

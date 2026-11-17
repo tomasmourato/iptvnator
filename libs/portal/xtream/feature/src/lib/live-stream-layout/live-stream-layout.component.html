@@ -196,6 +196,11 @@
                 <ng-container *ngTemplateOutlet="guideNowPlaying" />
             </div>
         }
+        @if (isEmbeddedPlayer && supportsProviderEpg && !guide.isOpen()) {
+            <app-live-phone-tabs
+                (guideSelected)="onLiveEpgPanelCollapsedChange(false)"
+            />
+        }
         @if (guide.isOpen()) {
             <app-epg-guide
                 class="epg-guide-host"
