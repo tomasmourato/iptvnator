@@ -64,16 +64,6 @@
     letter-spacing: -0.01em;
 }
 
-@media only screen and (max-width: 599px) {
-    .tab-title {
-        display: none;
-    }
-
-    .tab-icon {
-        display: block;
-    }
-}
-
 // ─── Header ───────────────────────────────────────────────────────────────────
 .context-header {
     @include layout.list-header-box;
