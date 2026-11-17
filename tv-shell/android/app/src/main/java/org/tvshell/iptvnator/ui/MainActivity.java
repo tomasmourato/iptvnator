@@ -82,6 +82,7 @@ public class MainActivity extends Activity {
     private TvShellServer server;
     private final LoopbackFilter loopback = new LoopbackFilter();
     private ApiScript apiScript;
+    private ColorSchemeScript colorScheme;
     private boolean resumed;
     private boolean pageReady;
     private boolean pageFinished;
@@ -379,6 +380,13 @@ public class MainActivity extends Activity {
             showError(getString(R.string.api_script_error));
             return;
         }
+        // Touch mode: the page's System theme follows Android's dark theme (ColorSchemeScript).
+        if (colorScheme == null) colorScheme = new ColorSchemeScript(this);
+        if (touchMode) {
+            colorScheme.bind(webView, "http://127.0.0.1:" + server.port(), ColorSchemeScript.isDark(getResources().getConfiguration()));
+        } else {
+            colorScheme.unbind();
+        }
         if (ShellApp.onFallbackPort()) toast(getString(R.string.port_fallback, prefs.serverPort(), server.port()));
         server.setLayoutWidth(loadedLayoutWidth);
         server.setScreenWidth(loadedScreenWidth);
@@ -612,6 +620,7 @@ public class MainActivity extends Activity {
     public void onConfigurationChanged(android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         chrome.refresh();
+        if (touchMode && colorScheme != null) colorScheme.update(ColorSchemeScript.isDark(newConfig));
         // Touch mode serves width=device-width: there is no pinned scale to follow, and a reload would
         // stop playback on every rotation.
         if (webView != null && server != null && !touchMode && errorPanel.getVisibility() != View.VISIBLE

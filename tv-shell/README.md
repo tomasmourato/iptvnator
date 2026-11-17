@@ -96,7 +96,11 @@ from the configured `--www` directory, with symbolic links confined to that dire
   playback, and fullscreen video turns to landscape (portrait video stays
   upright). The *Interface* setting forces TV or touch. Until the user picks a
   player, touch mode uses the HTML5 player: its hls.js plays HEVC in MPEG-TS,
-  which Video.js drops (sound without picture).
+  which Video.js drops (sound without picture). The app's *System* theme
+  follows Android's dark theme, live: the system WebView reports a light
+  colour scheme whatever that setting is, so a document-start script
+  (`assets/tvshell/color-scheme.js`, touch mode only) answers the page's
+  `prefers-color-scheme` queries from it.
 - **Shell capability descriptor**: `assets/app-config.js` carries
   `__IPTVNATOR_CONFIG__.SHELL` (`kind`, `mode`, `features`, optional
   `preferredPlayer`), which the app reads through `RuntimeCapabilitiesService`
