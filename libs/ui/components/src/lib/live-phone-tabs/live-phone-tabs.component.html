@@ -1,0 +1,24 @@
+@if (isPhone()) {
+    <div class="live-phone-tabs" role="tablist">
+        <button
+            type="button"
+            role="tab"
+            class="live-phone-tabs__tab"
+            data-test-id="live-phone-tab-channels"
+            [attr.aria-selected]="pane() === 'channels'"
+            (click)="select('channels')"
+        >
+            {{ 'HOME.PLAYLISTS.CHANNELS' | translate }}
+        </button>
+        <button
+            type="button"
+            role="tab"
+            class="live-phone-tabs__tab"
+            data-test-id="live-phone-tab-guide"
+            [attr.aria-selected]="pane() === 'guide'"
+            (click)="select('guide')"
+        >
+            {{ 'EPG.GUIDE.TITLE' | translate }}
+        </button>
+    </div>
+}

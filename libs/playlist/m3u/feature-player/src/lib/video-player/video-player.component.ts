@@ -149,6 +149,8 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
+// File-level entry: the @iptvnator/ui/components barrel is in the startup bundle.
+import { LivePhoneTabsComponent } from '@iptvnator/ui/components/live-phone-tabs';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -200,6 +202,7 @@ function isInsideScrollableRegion(
 @Component({
     selector: 'app-video-player',
     imports: [
+        LivePhoneTabsComponent,
         AsyncPipe,
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,

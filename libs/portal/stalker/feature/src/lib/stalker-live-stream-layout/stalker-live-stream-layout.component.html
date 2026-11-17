@@ -193,6 +193,16 @@
                 }
             </div>
         }
+        @if (
+            streamUrl() &&
+            isEmbeddedPlayer &&
+            !isRadioMode() &&
+            supportsProviderEpg
+        ) {
+            <app-live-phone-tabs
+                (guideSelected)="onLiveEpgPanelCollapsedChange(false)"
+            />
+        }
         @if (!isRadioMode() && supportsProviderEpg) {
             @let canCollapseEpgPanel = !!streamUrl() && isEmbeddedPlayer;
             <div

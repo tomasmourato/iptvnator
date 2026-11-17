@@ -114,8 +114,10 @@
 // this component includes; a narrower one here would leave a band of widths
 // where only the mixin's generic stacking applied.
 @media only screen and (max-width: 640px) {
-    :host {
-        flex-direction: column-reverse;
+    // The player sits above the list: the mixin stacks in DOM order, the
+    // list first, so the content pane moves up instead.
+    .content-container {
+        order: -1;
     }
 
     .sidebar {

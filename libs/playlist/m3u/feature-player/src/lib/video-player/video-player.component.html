@@ -161,6 +161,17 @@
                 </div>
             }
 
+            @if (
+                !guideOpen() &&
+                supportsEpg &&
+                activeChannel.radio !== 'true' &&
+                shouldShowInlinePlayer(activeChannel)
+            ) {
+                <app-live-phone-tabs
+                    (guideSelected)="onLiveEpgPanelCollapsedChange(false)"
+                />
+            }
+
             @if (guideOpen()) {
                 <app-epg-guide class="epg-guide-host" (close)="closeGuide()" />
             } @else if (supportsEpg && activeChannel.radio !== 'true') {

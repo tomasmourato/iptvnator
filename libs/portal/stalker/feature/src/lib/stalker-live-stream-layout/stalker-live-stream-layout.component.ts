@@ -118,6 +118,8 @@ import {
     mergeEpgProgramLists,
 } from './stalker-live-epg-preview';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+// File-level entry: the @iptvnator/ui/components barrel is in the startup bundle.
+import { LivePhoneTabsComponent } from '@iptvnator/ui/components/live-phone-tabs';
 
 type StalkerPlayableChannel = StalkerPortalItem & {
     cmd?: string;
@@ -158,6 +160,7 @@ import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session
     templateUrl: './stalker-live-stream-layout.component.html',
     styleUrls: ['./stalker-live-stream-layout.component.scss'],
     imports: [
+        LivePhoneTabsComponent,
         ChannelContextMenuComponent,
         ChannelScrollFocusDirective,
         AudioPlayerComponent,
