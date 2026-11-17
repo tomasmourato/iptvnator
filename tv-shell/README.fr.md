@@ -56,7 +56,11 @@ le clavier redimensionne la page, une rotation garde la page et la lecture, et
 la vidéo en plein écran passe en paysage. Le réglage *Interface* force le mode
 TV ou tactile. Tant que l'utilisateur n'a pas choisi de lecteur, le mode tactile
 utilise le lecteur HTML5 : son hls.js lit le HEVC en MPEG-TS, que Video.js
-abandonne (le son sans l'image).
+abandonne (le son sans l'image). Le thème *Système* de l'application suit le
+thème sombre d'Android, en direct : la WebView du système annonce un schéma
+de couleurs clair quel que soit ce réglage, donc un script de début de document
+(`assets/tvshell/color-scheme.js`, mode tactile seulement) répond à sa place
+aux requêtes `prefers-color-scheme` de la page.
 
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)
 
