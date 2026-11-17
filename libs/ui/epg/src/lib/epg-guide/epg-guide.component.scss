@@ -149,7 +149,8 @@ $ruler-height: 34px;
     color: $text-tertiary;
     flex: 0 0 auto;
 
-    @media (max-height: 400px) {
+    // The legend lists keys; a touch screen has none to press.
+    @media (max-height: 400px), (pointer: coarse) {
         display: none;
     }
 

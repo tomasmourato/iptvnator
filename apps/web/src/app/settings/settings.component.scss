@@ -555,6 +555,12 @@
     opacity: 0.8;
 }
 
+@media (pointer: coarse) {
+    .settings-kbd {
+        display: none;
+    }
+}
+
 // ─── Narrow panes ──────────────────────────────────────────────────────────
 // Below 600px of content width a row cannot hold its label beside a 220px
 // control, so the control drops under the label.

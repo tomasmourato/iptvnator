@@ -1730,6 +1730,11 @@ shrink into what is left.
 Prefer removing a control over shrinking everything around it:
 
 - Keyboard-only affordances — the `⌘K` badge, the shortcuts button.
+  Hide them under `@media (pointer: coarse)`, not only at the phone width:
+  a phone in landscape is wider than 640px and still has no keyboard. Key
+  caps in the command palette, the guide legend, the switcher hints and the
+  settings Save button follow the same rule. Don't use `(hover: none)` for
+  this: Android TV matches it and keeps its remote-key hints.
 - Counts and subtitles that a neighbouring control already states.
 
 Never drop the only way back to a hidden surface. A collapse toggle that is

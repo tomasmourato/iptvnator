@@ -195,8 +195,14 @@
 }
 
 // Phones: the hints need a keyboard; the link stays.
-@media (max-width: 480px) {
+@media (max-width: 480px), (pointer: coarse) {
     .switcher__hints {
+        display: none;
+    }
+}
+
+@media (pointer: coarse) {
+    .switcher__search kbd {
         display: none;
     }
 }
