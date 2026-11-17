@@ -177,3 +177,25 @@
         min-height: 220px;
     }
 }
+
+// A phone in landscape is about 360px tall, under the 320px floor plus the
+// header: the video started below the fold. Keyed on the pointer and the
+// height, so a short desktop window keeps its layout.
+@media (pointer: coarse) and (max-height: 500px) {
+    .player-shell {
+        gap: 8px;
+        padding: 8px 12px;
+        margin-top: 0;
+    }
+
+    .player-shell__eyebrow {
+        display: none;
+    }
+
+    // What is left under the app header (56px) and the player's own header
+    // (about 80px at this size, with its padding).
+    .player-shell__viewport {
+        min-height: 0;
+        max-height: calc(100vh - 160px);
+    }
+}
