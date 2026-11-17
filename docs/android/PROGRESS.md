@@ -655,3 +655,51 @@ web assets only).
    commit, then bring the value back under the limit before any upstream PR
    (or move the 73-byte rule into the lazy Xtream list stylesheet). Pushed
    to the fork with the check failing, at the user's request.
+
+## Roadmap step 2: per-launch /api secret (2026-11-17)
+
+Commit `68c82cc1a`, `tv-shell/` only (plus the workflow and a `.changes/` note).
+The Gradle checks now use JDK 17 (Temurin 17.0.21, installed with winget), the
+same as CI.
+
+### Design
+- Every `/api` request needs the launch's secret in `X-TvShell-Api`. Without it
+  the response is 403, never 401, which the web app reads as a server sign-in.
+- Only the shell's WebView holds the secret. `ApiScript` registers
+  `assets/tvshell/api-secret.js` as a document-start script for the bound
+  origin (saved or fallback port) before `loadUrl`. The script adds the header
+  to same-origin `/api` fetch/XHR.
+- Why not `app-config.js`: the local server hands it to any app.
+- Why not a cookie (first attempt): the emulator showed image and video
+  redirects to `127.0.0.1:<other port>/api` carrying it. Cookies ignore the
+  port, and `shouldInterceptRequest` never sees redirects.
+- Why ordering matters: the bootstrap probe `/api/v1/instance` is the first
+  request. A 403 there would store `iptvnator:source-server` and put the app
+  in server mode. Registering the script before the load prevents this.
+- `LoopbackGuard`: the WebView refuses `/api` paths on other loopback ports.
+  A first version blocked every other local port. That broke the touch and
+  background-media suites, and streams from a local proxy app on the device.
+  Narrowed at the user's choice.
+
+### Who calls /api (audit before relying on fetch/XHR)
+- `apps/web` and `libs` reach the backend only through `fetch` and HttpClient:
+  `pwa.service`, `pwa-xtream-request`, source sync and the instance probe.
+- The only Web Worker (`background-interval.ts`) is a timer.
+- No EventSource, WebSocket, beacon, iframe, img or video uses a backend URL.
+- `libs/ui/remote-control` (`/api/remote-control`) is not in `apps/web`.
+
+### Results
+| Check | Result |
+|---|---|
+| `:backend:check` (JDK 17) / `node --test` | 80 / 20 pass |
+| lint / typecheck:web / test:frontend (1201) / build:frontend:pwa | pass. `apps/` and `libs/` unchanged, so initial-bytes is unchanged |
+| `tv-remote` / `tv-longlist` / `tv-touch` against a dev server requiring the secret | pass |
+| `android-loopback-secret.mjs`, TV API 34 and tablet API 37 | pass. Cold starts: no refusal, no server mode. A new secret on each launch. The secret never reaches another local server, directly or through image or video redirects. Other local URLs still load. `adb forward` and `adb shell` (uid 2000) get 403 without the secret, with a wrong one or with the previous launch's. Fallback port 43331 works |
+| `android-bridge`, `android-protocol-discovery` (now in-page), `android-background-media` | pass on both |
+| `android-large-catalog` | tablet: pass. TV: the renderer crashes on the series tab, **also with an APK built from the parent commit** |
+| `android-touch` (tablet) | 6/7. The 7th (Back after the settings shortcut) fails the same way with the parent commit's APK, as on 2026-11-16 |
+
+The new test and `android-protocol-discovery` close every Playwright device.
+With a second adb device attached (the physical phone), closing only their
+own device kept the process alive. That is the "hang in `device.close()`"
+harness limit above. The other suites still have it.
