@@ -615,3 +615,30 @@
         font-size: 0.88rem;
     }
 }
+
+// A player strip, such as the programme guide's dock on a phone (about
+// 144x81px): the full panel cannot fit, and cropped it read "Copy the". Keep
+// the badge and a one-line headline; the full panel returns with the player.
+@container playback-diagnostic (max-height: 200px) {
+    .web-player-diagnostic {
+        align-items: center;
+        padding: 8px;
+        overflow: hidden;
+    }
+
+    .web-player-diagnostic__headline {
+        margin: 4px 0 0;
+        overflow: hidden;
+        font-size: 0.84rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .web-player-diagnostic__description,
+    .web-player-diagnostic__recommendations,
+    .web-player-diagnostic__utilities,
+    .web-player-diagnostic__divider,
+    .web-player-diagnostic__details {
+        display: none;
+    }
+}
