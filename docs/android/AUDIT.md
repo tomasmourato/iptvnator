@@ -144,7 +144,7 @@ Phone-only gaps that tv-shell does not address at all:
 
 **Security note, more serious on phones**: any app on the device can reach the loopback
 server and use it as an open fetch proxy. There is no shared secret between the WebView
-and the server.
+and the server. (Fixed by roadmap step 2, `68c82cc1a`: see `PROGRESS.md`.)
 
 ---
 
@@ -265,6 +265,10 @@ says whether tv-shell already covers it today.
    Split `MainActivity` while doing this.
 2. **Loopback shared secret**: generate a per-launch token, inject it with
    `app-config.js`, and require it on `/api/*`.
+   *Done differently (`68c82cc1a`)*: `app-config.js` is served to any local app, and a
+   cookie leaked through redirects to other local ports. The token is now an
+   `X-TvShell-Api` header, added by a native document-start script limited to the shell's
+   origin. Details in `PROGRESS.md`.
 3. **Capability hook instead of the class marker**: a small shell descriptor (e.g. in
    `__IPTVNATOR_CONFIG__`) read by `RuntimeCapabilitiesService`, so features like export
    and "open in external player" are gated by capability, not by the `tv-shell` class.
