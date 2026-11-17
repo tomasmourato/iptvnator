@@ -16,7 +16,7 @@ public final class DiagnosticRedactor {
     private static final Pattern CREDENTIAL_LINE = Pattern.compile(
         "\\b[a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id[12]?|login|"
         + "mac(?:[-_.]?address)?|passwd|password|prehash|pwd|secret|serial[-_.]?number|set[-_.]?cookie|"
-        + "signature[12]?|sn|token|username)[\"']?\\s*[:=][^\\r\\n]*", Pattern.CASE_INSENSITIVE);
+        + "signature[12]?|sn|token|tvshell[-_.]?api|username)[\"']?\\s*[:=][^\\r\\n]*", Pattern.CASE_INSENSITIVE);
     private static final Pattern AUTH_LINE = Pattern.compile("\\b(?:Bearer|Basic)\\s+[^\\r\\n]+", Pattern.CASE_INSENSITIVE);
 
     private DiagnosticRedactor() {}
