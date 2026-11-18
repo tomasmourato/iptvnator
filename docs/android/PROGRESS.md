@@ -722,7 +722,7 @@ harness limit above. The other suites still have it.
    like a timing problem in the test. Make the step wait until the settings
    window has focus before pressing Back.
 
-## UX batches 6–8: touch chrome (2026-11-18), stopped after batch 6
+## UX batches 6–8: touch chrome (2026-11-18), stopped after batch 7
 
 Plan: batches 6–8 of [UX-REVIEW.md](UX-REVIEW.md), fork-only for now, gated on
 the shell capability descriptor's touch mode (`WorkspaceTouchLayoutService`:
@@ -749,22 +749,32 @@ UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`)
 - Known: at 411px the bar labels "Global favorites" and "Recently viewed"
   truncate (they reuse the rail's translated tooltips).
 
+### Done: batch 7 (`04400e524`)
+- In portrait the header search is an icon (☰ · switcher · 🔍 · + · ⚙). The
+  icon expands the route-aware field over the header row, with the scope
+  chip inside it (dismissible where the provider allows it). Batch 2's
+  toggle row stays under the header.
+- State is in `workspace-shell-header.component.ts`. A term (an active `?q=`
+  included) keeps the field open. The arrow or Escape clears the term and
+  collapses it, with focus back on the icon. Leaving an empty field folds it
+  back. The styles are `workspace-touch-search.scss`, a second global
+  `styleUrl` of the deferred bottom bar; the header stylesheet is unchanged.
+- **Addition 2:** the expanded field is a `data-tv-back-layer`. `tv.js` now
+  closes the last visible layer in document order, so with the dial and the
+  search both open Back closes the dial first. `tv-touch.mjs` step 4b
+  checks this and fails with the previous `tv.js`.
+- **Addition 1:** re-checked on the AVD (debug APK). The tap expands a 395px
+  field and the keyboard hides the bar (visual viewport 840 → 528px). The
+  first Back hides the keyboard; the second clears `q` and collapses the
+  field on the same route. Captures: `…\after\b7-*`.
+- Launch initial bytes 1,200,828 (unchanged from batch 6).
+- The device check ran with the Xtream mock on 3211 down (the portal showed
+  "unavailable"). The header was still testable, but the scope chip there
+  was the non-dismissible "Movies / All items". `touch-chrome.e2e.ts`
+  covers the dismissible chip.
+
 ### Next
-1. **Batch 7, header search placement** (decision 3 and 4):
-   - in portrait, a search icon in the header that expands the existing
-     route-aware field over the header row, with the dismissible scope chip
-     visible inside it; batch 2's toggle row stays under it;
-   - arrow_back or Escape clears the term and collapses; an active `?q=`
-     stays expanded;
-   - **addition 2 for search:** the expanded field must carry
-     `data-tv-back-layer` and close on Escape, so Back collapses it before
-     navigating; extend `tv-touch.mjs` and `touch-chrome.e2e.ts`;
-   - **addition 1:** with the field focused the keyboard hides the bar
-     (already works through `soft-keyboard.ts`); re-check on the AVD.
-   - Header changes go in `workspace-shell-header.component.{ts,html}`
-     (`touchChrome` input already there); CSS in the deferred bar's global
-     styles, not the header stylesheet (near its budget).
-2. **Batch 8, compact landscape:**
+1. **Batch 8, compact landscape:**
    - the rail's provider region gives way to the same Play
      (`<app-workspace-touch-play placement="beside">`, projected into the rail
      through a new `<ng-content />`, under `@defer`);
@@ -775,7 +785,7 @@ UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`)
    - live: list 320px beside the player, video at least 60% of the height;
    - **addition 3:** check the dial and drawer stay clear of the player and
      snack bars in landscape.
-3. After batch 8: `adb install -r` the debug APK on the phone
+2. After batch 8: `adb install -r` the debug APK on the phone
    (65180DLCR001G4), then stop.
 
 ### To resume
@@ -783,6 +793,6 @@ UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`)
   (`marketing`/`marketing`), 3210 (Stalker MAC `00:1A:79:00:00:07`), with
   `adb reverse` for each. The capture scripts are in
   `C:\Users\mrttm\iptvnator-ux-review\2026-11-17\scripts\`; batch 6 captures
-  are in `…\after\b6-*`.
+  are in `…\after\b6-*`, batch 7's in `…\after\b7-*`.
 - `tv-touch.mjs` needs `run-dev.sh` (mock on 43331) and
   `server.mjs --www dist/apps/web --port 43332 --touch`.
