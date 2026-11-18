@@ -502,8 +502,10 @@ play in another player.
   reference the previous GOP. Chromium's MediaCodec reports "initial decode
   error", the FFmpeg fallback rejects the first non-key packet, then
   `PIPELINE_ERROR_DECODE`. It fails the same way with Video.js and with
-  hls.js, so no WebView engine can start it. Native players (Media3 HLS sets
-  `FLAG_ALLOW_NON_IDR_KEYFRAMES`, VLC) drop the leading pictures.
+  hls.js, so no WebView engine can start it. Native players drop the leading
+  pictures. (Correction: Media3's default HLS extractor does **not** set
+  `FLAG_ALLOW_NON_IDR_KEYFRAMES`, and on this phone Media3 plays it only with
+  FFmpeg software decoding; see the phase 2 spike below.)
 - The vague message: Video.js `MEDIA_ERR_DECODE` was classified as
   `unknown-playback-error`.
 
@@ -545,6 +547,8 @@ play in another player.
 | Pixel 10, real provider A (`adb install -r`, data kept) | PASS. HEVC channels play with the HTML5 player. With Video.js selected, the HEVC channel shows the unsupported-codec diagnostic and the external-player offer instead of loading forever. The open-GOP channel shows the decode diagnostic and the external-player offer. In VLC with default settings (hardware decoding) the open-GOP channel plays sound over a black screen; with VLC's hardware acceleration disabled (software decoding) it plays normally. No other player tested |
 
 ### Phase 2 (later, after roadmap step 2, security): native Media3 player
+Superseded by the [phase 2 spike](#phase-2-spike-media3-on-the-open-gop-channel-2026-11-18)
+and by upstream's Media3 pilot (#2209). The notes below are the original plan.
 The only in-app fix for open-GOP H.264 (and for AC3/E-AC3 and raw `.ts`).
 A separate plan, not started:
 - add `media3-exoplayer`, `-hls`, `-ui` to `tv-shell/android/app` (about
@@ -823,3 +827,89 @@ the keyboard.
   `--tsconfig` it can't resolve `@iptvnator/*`).
 - `tv-touch.mjs` needs `run-dev.sh` (mock on 43331) and
   `server.mjs --www dist/apps/web --port 43332 --touch`.
+
+## Phase 2 spike: Media3 on the open-GOP channel (2026-11-18)
+
+Step 1 of phase 2: before any player is built, check which Media3 setup shows
+a picture on provider A's open-GOP channel. Tested on the Pixel 10 (Tensor G5,
+Android 17 / API 37, arm64-v8a) with the user's real provider. The spike code
+is a local branch, `spike/media3-open-gop` (`69ad7d9a2`), never pushed or merged.
+
+### Found before the spike
+- **Upstream already has a Media3 pilot:** `401b42a84 feat(tv-shell): pilot
+  Media3 playback with AC-3 fallback (#2209)`. It isn't on this branch yet
+  (merge-base `d824c5e50`, 6 upstream commits behind).
+  - `NativePlayerActivity`: Media3 1.11.1, OkHttp, HLS, UI, session.
+  - A "Try built-in player" button through a `playNative` bridge, with resume
+    checkpoints; it's an opt-in shell setting.
+  - The external offer appears only after both engines fail.
+  - FFmpeg 6.1.6 built for **AC-3 audio only** by
+    `tv-shell/scripts/build-media3-ffmpeg.sh`. That script runs on `preBuild`
+    and needs Linux or macOS, so after a rebase the Windows build needs WSL or
+    a prebuilt-output option. It also needs compileSdk 36 and NDK r28c.
+  - It uses the default extractor flags and has no software video fallback.
+- **Media3's FFmpeg *video* renderer is a stub** (`ExperimentalFfmpegVideoRenderer`
+  on `main`: `supportsFormat` → unsupported, `createDecoder` → null). A native
+  build of Media3's FFmpeg extension is therefore audio only.
+- **The only prebuilt FFmpeg video decoder for Media3 found:** NextLib
+  `io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.19.0`, **GPL-3.0**.
+- **The phone's decoders:**
+  - `c2.google.avc.decoder` (hardware);
+  - `c2.android.avc.decoder` (software);
+  - Dolby `c2.dolby.eac3.decoder` and `OMX.dolby.ac3.decoder`.
+
+### Setup
+- `SpikePlayerActivity`, reached from a third button in the external-player
+  dialog. The URL travels as an Intent extra and is held in memory only.
+- Four modes:
+  - **A**: the pilot's setup (default extractors, `EXTENSION_RENDERER_MODE_ON`).
+  - **B**: A + `FLAG_ALLOW_NON_IDR_KEYFRAMES` (HLS and TS extractors).
+  - **C1**: B + a `MediaCodecSelector` keeping only software video decoders.
+  - **C2**: B + NextLib's `NextRenderersFactory` with
+    `EXTENSION_RENDERER_MODE_PREFER`.
+- Logs go through `DiagnosticRedactor` under one tag: decoder names, formats,
+  `DecoderCounters`, error codes, redirect hops (scheme and same-host only),
+  and the luma mean/stddev of a 16×9 `PixelCopy`. No image was kept, and no
+  URL appears in the captured logs (checked).
+- The stream is HLS, H.264 High@4.0 1080p, AAC-LC 2 ch 24 kHz.
+
+### Results (three runs; the user watched each)
+| Mode | Video decoder | Counters | Seen |
+|---|---|---|---|
+| A | `c2.google.avc.decoder` | ~3 000 input frames queued, **0 rendered**, no codec or player error; stuck buffering; audio stops after 11 buffers | black, no sound |
+| B | `c2.google.avc.decoder` | identical to A | black, no sound |
+| C1 | `c2.android.avc.decoder` | ~3 000 queued, **1 rendered** (the first frame), no error; buffering on and off | frozen first frame, audio stopping, black after ~15 s. Run 1: picture cutting out (counters lost); run 2: four unfollowed HTTP 302 playlist answers, never decoded |
+| C2 | NextLib FFmpeg H.264 | first frame 2.8–6.5 s, ~25 fps, **0 dropped**, luma stddev 32–66 | smooth picture and sound in all three runs |
+
+- **Hardware and platform software decoders stall silently.** No codec error
+  and no player error. A fallback can't wait for an error: it has to detect
+  "input queued, no frame rendered" and switch decoders.
+- **`FLAG_ALLOW_NON_IDR_KEYFRAMES` alone changes nothing** on this phone. The
+  upstream pilot would stay black on this channel.
+- **Redirects:** run 3 logged one 302 (http → http, another host) that OkHttp
+  followed. The unfollowed 302s of run 2 didn't recur, so they look transient
+  on the provider's side.
+
+### Sizes (release APKs, debug-signed as CI does without a keystore)
+| | Base | + Media3 1.11.1 and NextLib |
+|---|---|---|
+| Universal APK | 17.7 MiB | 75.6 MiB |
+| arm64-v8a / armeabi-v7a / x86 / x86_64 split | — | 33.6 / 32.4 / 35.0 / 37.6 MiB |
+| Code and resources (all ABIs) | 1.2 MiB | 4.5 MiB (Media3 and NextLib's Java/Kotlin together) |
+| NextLib native libraries per ABI | — | 12.5 / 11.3 / 14.0 / 16.5 MiB |
+
+NextLib's arm64 libraries: libavcodec 5.4, libass 2.5, libavformat 2.4,
+libswscale 1.1 and libavutil 0.7 MiB, plus glue. The native FFmpeg build was
+skipped (the user's choice); upstream's build is AC-3-only.
+
+### What this means for the full player
+- Only FFmpeg software decoding plays the channel. Choices:
+  - **NextLib:** proven here, but GPL-3.0, so a distributed APK becomes
+    GPL-3.0 and upstream would likely refuse it; 11–17 MiB per ABI.
+  - **Our own FFmpeg video decoder:** completes Media3's stub against an LGPL
+    FFmpeg build with only the needed decoders (H.264, maybe HEVC). Small, but
+    native code to write and maintain.
+- Either way, start on hardware and switch to FFmpeg after N seconds with
+  input queued and no frame rendered, or after a decode error.
+- Next: rebase onto upstream's pilot, then plan the decoder fallback, touch
+  mode, the external-offer entry and auto-route on top of it.
