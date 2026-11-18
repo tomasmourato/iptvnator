@@ -1,0 +1,54 @@
+// The header's touch search (fork-only, tv-shell touch mode, phone in
+// portrait). Global and loaded with the deferred bottom bar, like its own
+// styles, so the header stylesheet stays within its budget. The header
+// template decides the state: an icon in the header actions while the field
+// is unused, the field over the whole header row once it is used.
+
+.workspace-shell[data-touch-chrome='portrait'] .workspace-header {
+    // Collapsed: the switcher takes the room the field left
+    // (☰ · switcher · 🔍 · + · ⚙).
+    &:not(.is-touch-search-expanded) .playlist-switcher {
+        flex: 1 1 auto;
+    }
+
+    // Expanded: the field is the header row. Back, the drawer toggle, the
+    // switcher and the actions leave the row, the focus order and the
+    // accessibility tree until it folds back.
+    &.is-touch-search-expanded > :not(.search-field) {
+        display: none;
+    }
+
+    .search-field--touch {
+        flex: 1 1 auto;
+        max-width: none;
+        height: 40px;
+        padding-inline-start: 0;
+
+        // Hidden in the phone header for lack of room; here it has the row,
+        // so the category scope shows and can be dismissed in the field.
+        .search-chip--scope {
+            display: inline-flex;
+            max-width: 40%;
+        }
+    }
+
+    .search-field__collapse {
+        display: inline-grid;
+        flex-shrink: 0;
+        place-items: center;
+        width: 40px;
+        height: 38px;
+        padding: 0;
+        border: 0;
+        border-start-start-radius: 10px;
+        border-end-start-radius: 10px;
+        background: transparent;
+        color: var(--mat-sys-on-surface-variant);
+        cursor: pointer;
+
+        &:focus-visible {
+            outline: 2px solid var(--app-focus-ring);
+            outline-offset: -2px;
+        }
+    }
+}

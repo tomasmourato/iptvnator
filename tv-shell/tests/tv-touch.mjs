@@ -123,6 +123,28 @@ try {
     check(dialBack === true && (await dial.count()) === 0, 'Back closes the dial first');
     check(page.url() === beforeDial, 'and does not navigate (still ' + new URL(page.url()).pathname + ')');
 
+    console.log('4b. header search: the icon expands the field, Back collapses it first');
+    const searchToggle = page.locator('[data-test-id="header-touch-search"]');
+    const searchField = page.locator('[data-test-id="header-touch-search-field"]');
+    check((await page.locator('#workspace-shell-search-input').count()) === 0, 'the search field is an icon until used');
+    await touch(searchToggle);
+    await searchField.waitFor({ state: 'visible' });
+    await page.locator('#workspace-shell-search-input').fill('clip');
+    await page.waitForTimeout(800);
+    const searchBox = await searchField.boundingBox();
+    check(!!searchBox && searchBox.width > 300, 'the field takes the header row (' + Math.round(searchBox?.width ?? 0) + 'px)');
+    await page.locator('#workspace-shell-search-input').blur();
+    await touch(page.locator('[data-test-id="touch-play"]'));
+    await dial.waitFor({ state: 'visible' });
+    await page.evaluate(() => window.__tvShell.back());
+    await page.waitForTimeout(500);
+    check((await dial.count()) === 0 && (await searchField.count()) === 1, 'with both open, Back closes the dial (on top) first');
+    const beforeSearchBack = new URL(page.url()).pathname;
+    const searchBack = await page.evaluate(() => window.__tvShell.back());
+    await page.waitForTimeout(800);
+    check(searchBack === true && (await searchField.count()) === 0, 'then Back clears and collapses the search');
+    check(new URL(page.url()).pathname === beforeSearchBack && !/[?&]q=/.test(page.url()), 'without navigating (still ' + new URL(page.url()).pathname + ', no q)');
+
     console.log('5. Back still goes through the shell layer');
     const before = new URL(page.url()).pathname;
     await page.goto(URL_ + '/workspace/settings', { waitUntil: 'networkidle' });

@@ -1,9 +1,13 @@
 import {
+    afterNextRender,
     ChangeDetectionStrategy,
     Component,
     computed,
     ElementRef,
+    inject,
+    Injector,
     input,
+    linkedSignal,
     output,
     viewChild,
 } from '@angular/core';
@@ -45,6 +49,10 @@ export class WorkspaceShellHeaderComponent {
     private readonly contextDrawerToggle = viewChild('contextDrawerToggle', {
         read: ElementRef<HTMLButtonElement>,
     });
+    private readonly touchSearchToggle = viewChild('touchSearchToggle', {
+        read: ElementRef<HTMLButtonElement>,
+    });
+    private readonly injector = inject(Injector);
 
     readonly isMac =
         typeof navigator !== 'undefined' &&
@@ -87,6 +95,21 @@ export class WorkspaceShellHeaderComponent {
      */
     readonly touchChrome = input<'portrait' | 'landscape' | null>(null);
     /**
+     * In portrait the search field is a header icon until it is used: the
+     * icon expands it over the header row. A term keeps it expanded.
+     */
+    readonly touchSearch = computed(() => this.touchChrome() === 'portrait');
+    private readonly touchSearchExpanded = linkedSignal({
+        source: this.touchChrome,
+        computation: () => false,
+    });
+    readonly searchCollapsed = computed(
+        () =>
+            this.touchSearch() &&
+            !this.touchSearchExpanded() &&
+            this.searchQuery() === ''
+    );
+    /**
      * Parental lock indicator: `off` hides the button, `locked` offers the
      * PIN prompt, `unlocked` offers "Lock now".
      */
@@ -118,6 +141,9 @@ export class WorkspaceShellHeaderComponent {
         return back ? (back.phoneDrawerToggle ?? 'replace') : null;
     });
     /** The drawer toggle renders unless Back takes its phone slot. */
+    readonly showSearch = computed(
+        () => !this.hasNoPlaylists() || this.isSettingsRoute()
+    );
     readonly showDrawerToggle = computed(
         () =>
             this.showContextDrawerToggle() && this.backPhoneSlot() !== 'replace'
@@ -161,7 +187,62 @@ export class WorkspaceShellHeaderComponent {
         this.searchInput()?.nativeElement.focus();
     }
 
+    /** Focuses the search field, expanding the touch chrome's icon first. */
     focusSearchInput(options: { select?: boolean } = {}): void {
+        if (this.searchCollapsed()) {
+            this.touchSearchExpanded.set(true);
+            afterNextRender(() => this.focusSearchField(options), {
+                injector: this.injector,
+            });
+            return;
+        }
+        this.focusSearchField(options);
+    }
+
+    /** The expanded touch field's arrow: clear the term and collapse. */
+    onTouchSearchCollapse(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.collapseTouchSearch();
+    }
+
+    /**
+     * Escape, or the tv-shell's Back (it sends Escape to the open Back
+     * layer): clear and collapse, and keep the page from seeing the key.
+     */
+    onTouchSearchEscape(event: Event): void {
+        if (!this.touchSearch()) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        this.collapseTouchSearch();
+    }
+
+    /** Leaving an empty expanded field folds it back into the icon. */
+    onTouchSearchFocusOut(event: FocusEvent): void {
+        const field = event.currentTarget as HTMLElement | null;
+        if (
+            !this.touchSearch() ||
+            this.searchQuery() !== '' ||
+            field?.contains(event.relatedTarget as Node | null)
+        ) {
+            return;
+        }
+        this.touchSearchExpanded.set(false);
+    }
+
+    private collapseTouchSearch(): void {
+        if (this.searchQuery() !== '') {
+            this.searchChanged.emit('');
+        }
+        this.touchSearchExpanded.set(false);
+        afterNextRender(() => this.touchSearchToggle()?.nativeElement.focus(), {
+            injector: this.injector,
+        });
+    }
+
+    private focusSearchField(options: { select?: boolean }): void {
         const inputElement = this.searchInput()?.nativeElement;
         if (!inputElement || inputElement.disabled) {
             return;

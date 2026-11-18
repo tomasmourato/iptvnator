@@ -1,6 +1,7 @@
 <header
     class="workspace-header"
     [class.is-settings-route]="isSettingsRoute()"
+    [class.is-touch-search-expanded]="touchSearch() && !searchCollapsed()"
     [appLayoutSlide]="leadingNavigationKey()"
     [layoutSlideRecordOn]="controlsLayoutKey()"
     layoutSlideTargets=".context-drawer-toggle, .playlist-switcher, .search-field, .header-actions"
@@ -67,10 +68,35 @@
     }
 
     <!-- Settings search works without any playlist, so a fresh user can
-         find settings before importing a first source. -->
-    @if (!hasNoPlaylists() || isSettingsRoute()) {
-        <label class="search-field" for="workspace-shell-search-input">
-            <mat-icon>search</mat-icon>
+         find settings before importing a first source. Fork-only touch
+         chrome (phone in portrait): the field is a header icon until it is
+         used; expanded it takes the header row and is a Back layer, so the
+         tv-shell's Back (Escape) clears and collapses it before navigating. -->
+    @if (showSearch() && !searchCollapsed()) {
+        <label
+            class="search-field"
+            for="workspace-shell-search-input"
+            [class.search-field--touch]="touchSearch()"
+            [attr.data-tv-back-layer]="touchSearch() ? '' : null"
+            [attr.data-test-id]="
+                touchSearch() ? 'header-touch-search-field' : null
+            "
+            (keydown.escape)="onTouchSearchEscape($event)"
+            (focusout)="onTouchSearchFocusOut($event)"
+        >
+            @if (touchSearch()) {
+                <button
+                    type="button"
+                    class="search-field__collapse"
+                    data-test-id="header-touch-search-close"
+                    [attr.aria-label]="'CLEAR_SEARCH' | translate"
+                    (click)="onTouchSearchCollapse($event)"
+                >
+                    <mat-icon>arrow_back</mat-icon>
+                </button>
+            } @else {
+                <mat-icon>search</mat-icon>
+            }
             @if (searchScopeLabel()) {
                 @if (canClearCategoryScope()) {
                     <button
@@ -147,6 +173,20 @@
          importing their first source). Only the per-playlist shortcut
          is hidden on Settings. -->
     <div class="header-actions header-actions--leading">
+        @if (showSearch() && searchCollapsed()) {
+            <button
+                #touchSearchToggle
+                type="button"
+                class="header-touch-search"
+                mat-icon-button
+                data-test-id="header-touch-search"
+                [disabled]="!canUseSearch()"
+                [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
+                (click)="focusSearchInput()"
+            >
+                <mat-icon>search</mat-icon>
+            </button>
+        }
         <button
             type="button"
             class="shortcuts-trigger"

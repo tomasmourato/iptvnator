@@ -63,9 +63,11 @@ de couleurs clair quel que soit ce réglage, donc un script de début de documen
 aux requêtes `prefers-color-scheme` de la page. Sur un téléphone en portrait,
 une barre en bas remplace la barre du haut de l'application (Accueil, Sources,
 Lecture, Favoris, Récents ; les Réglages deviennent un engrenage dans l'en-tête).
-Lecture ouvre un menu avec les sections de la source. Retour ferme ce menu avant
-de naviguer : une couche marquée `data-tv-back-layer` reçoit Échap juste après
-les dialogues. Cette interface tactile est propre au fork pour l'instant et ne
+Lecture ouvre un menu avec les sections de la source. La recherche est une icône
+de l'en-tête qui déplie le champ sur toute la ligne, avec la catégorie active.
+Retour ferme ce menu ou la recherche avant de naviguer : une couche marquée
+`data-tv-back-layer` reçoit Échap juste après les dialogues (la dernière dans
+l'ordre du document s'il y en a plusieurs). Cette interface tactile est propre au fork pour l'instant et ne
 s'active qu'en mode tactile du descripteur du shell.
 
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)

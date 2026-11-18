@@ -38,7 +38,12 @@ const ICON_OVERRIDES: Readonly<Record<string, string>> = {
         WorkspaceTouchPlayComponent,
     ],
     templateUrl: './workspace-touch-bottom-bar.component.html',
-    styleUrl: './workspace-touch-bottom-bar.component.scss',
+    // The header's touch search rides along: same deferred chunk, same
+    // global scope.
+    styleUrls: [
+        './workspace-touch-bottom-bar.component.scss',
+        './workspace-touch-search.scss',
+    ],
     encapsulation: ViewEncapsulation.None,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
