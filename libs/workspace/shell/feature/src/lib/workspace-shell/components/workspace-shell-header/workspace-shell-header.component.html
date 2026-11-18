@@ -1,6 +1,9 @@
 <header
     class="workspace-header"
     [class.is-settings-route]="isSettingsRoute()"
+    [class.is-touch-search-expanded]="
+        touchSearch.active() && !touchSearch.collapsed()
+    "
     [appLayoutSlide]="leadingNavigationKey()"
     [layoutSlideRecordOn]="controlsLayoutKey()"
     layoutSlideTargets=".context-drawer-toggle, .playlist-switcher, .search-field, .header-actions"
@@ -68,10 +71,50 @@
 
     <!-- Never rendered disabled (see showSearchField). Settings search
          works without any playlist, so a fresh user can find settings
-         before importing a first source. -->
-    @if (showSearchField()) {
-        <label class="search-field" for="workspace-shell-search-input">
+         before importing a first source. Fork-only touch chrome (phone in
+         portrait): the field is a header icon until it is used; expanded it
+         takes the header row and is a Back layer, so the tv-shell's Back
+         (Escape) clears and collapses it before navigating. The icon sits
+         where the field sits, outside the overflow cluster, so it never
+         moves into "More actions". -->
+    @if (showSearchField() && touchSearch.collapsed()) {
+        <button
+            #touchSearchToggle
+            type="button"
+            class="header-touch-search"
+            mat-icon-button
+            data-test-id="header-touch-search"
+            [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
+            (click)="focusSearchInput()"
+        >
             <mat-icon>search</mat-icon>
+        </button>
+    }
+    @if (showSearchField() && !touchSearch.collapsed()) {
+        <label
+            class="search-field"
+            for="workspace-shell-search-input"
+            [class.search-field--touch]="touchSearch.active()"
+            [attr.data-tv-back-layer]="touchSearch.active() ? '' : null"
+            [attr.data-test-id]="
+                touchSearch.active() ? 'header-touch-search-field' : null
+            "
+            (keydown.escape)="touchSearch.onEscape($event)"
+            (focusout)="touchSearch.onFocusOut($event)"
+        >
+            @if (touchSearch.active()) {
+                <button
+                    type="button"
+                    class="search-field__collapse"
+                    data-test-id="header-touch-search-close"
+                    [attr.aria-label]="'CLEAR_SEARCH' | translate"
+                    (click)="touchSearch.onCollapse($event)"
+                >
+                    <mat-icon>arrow_back</mat-icon>
+                </button>
+            } @else {
+                <mat-icon>search</mat-icon>
+            }
             @if (searchScopeLabel()) {
                 @if (canClearCategoryScope()) {
                     <button
@@ -234,8 +277,12 @@
                     mat-icon-button
                     data-test-id="header-add-source"
                     (click)="onAddPlaylistRequested()"
-                    [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
-                    [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+                    [matTooltip]="
+                        'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate
+                    "
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.ADD_PLAYLIST' | translate
+                    "
                 >
                     <mat-icon>add</mat-icon>
                 </button>
@@ -250,7 +297,9 @@
                     routerLink="/workspace/settings"
                     data-test-id="header-touch-settings"
                     [class.is-active]="isSettingsRoute()"
-                    [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.OPEN_SETTINGS' | translate
+                    "
                 >
                     <mat-icon>settings</mat-icon>
                 </a>
@@ -319,7 +368,9 @@
                     data-test-id="header-overflow-menu"
                     [matMenuTriggerFor]="overflowMenu"
                     [matTooltip]="'WORKSPACE.SHELL.MORE_ACTIONS' | translate"
-                    [attr.aria-label]="'WORKSPACE.SHELL.MORE_ACTIONS' | translate"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.MORE_ACTIONS' | translate
+                    "
                 >
                     <mat-icon>more_vert</mat-icon>
                 </button>

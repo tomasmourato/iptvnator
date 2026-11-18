@@ -481,6 +481,137 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(gear()).toBeNull();
     });
 
+    describe('touch search (portrait touch chrome)', () => {
+        const field = (): HTMLElement | null =>
+            fixture.nativeElement.querySelector('.search-field');
+        const toggle = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-touch-search"]'
+            );
+        const searchInput = (): HTMLInputElement | null =>
+            fixture.nativeElement.querySelector('input[type="search"]');
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('touchChrome', 'portrait');
+            fixture.componentRef.setInput('searchQuery', '');
+            fixture.componentRef.setInput('searchScopeLabel', 'Newsroom');
+            fixture.componentRef.setInput('canClearCategoryScope', true);
+            fixture.detectChanges();
+        });
+
+        it('is an icon until used, then a Back layer with the scope chip', async () => {
+            expect(field()).toBeNull();
+            expect(toggle()?.getAttribute('aria-label')).toBe(
+                'WORKSPACE.SHELL.SEARCH_LABEL'
+            );
+
+            toggle()?.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(toggle()).toBeNull();
+            expect(field()?.hasAttribute('data-tv-back-layer')).toBe(true);
+            expect(
+                fixture.nativeElement
+                    .querySelector('.workspace-header')
+                    .classList.contains('is-touch-search-expanded')
+            ).toBe(true);
+            expect(
+                field()?.querySelector(
+                    '[data-test-id="workspace-search-scope-clear"]'
+                )
+            ).not.toBeNull();
+            expect(document.activeElement).toBe(searchInput());
+        });
+
+        it('stays expanded with a term', () => {
+            fixture.componentRef.setInput('searchQuery', 'neo');
+            fixture.detectChanges();
+
+            expect(toggle()).toBeNull();
+            expect(field()).not.toBeNull();
+        });
+
+        it('Escape (the shell Back) clears the term and collapses, and stops there', async () => {
+            fixture.componentRef.setInput('searchQuery', 'neo');
+            fixture.detectChanges();
+            const changed = jest.fn();
+            component.searchChanged.subscribe(changed);
+            const pageListener = jest.fn();
+            document.addEventListener('keydown', pageListener);
+
+            const escape = new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            });
+            field()?.dispatchEvent(escape);
+            document.removeEventListener('keydown', pageListener);
+
+            expect(changed).toHaveBeenCalledWith('');
+            expect(escape.defaultPrevented).toBe(true);
+            expect(pageListener).not.toHaveBeenCalled();
+
+            fixture.componentRef.setInput('searchQuery', '');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(field()).toBeNull();
+            expect(document.activeElement).toBe(toggle());
+        });
+
+        it('the arrow collapses an empty field without emitting', () => {
+            toggle()?.click();
+            fixture.detectChanges();
+            const changed = jest.fn();
+            component.searchChanged.subscribe(changed);
+
+            (
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="header-touch-search-close"]'
+                ) as HTMLButtonElement
+            ).click();
+            fixture.detectChanges();
+
+            expect(changed).not.toHaveBeenCalled();
+            expect(field()).toBeNull();
+        });
+
+        it('folds back when focus leaves an empty field, not within it', () => {
+            toggle()?.click();
+            fixture.detectChanges();
+            const arrow = fixture.nativeElement.querySelector(
+                '[data-test-id="header-touch-search-close"]'
+            );
+
+            field()?.dispatchEvent(
+                new FocusEvent('focusout', { relatedTarget: arrow })
+            );
+            fixture.detectChanges();
+            expect(field()).not.toBeNull();
+
+            field()?.dispatchEvent(
+                new FocusEvent('focusout', { relatedTarget: null })
+            );
+            fixture.detectChanges();
+            expect(field()).toBeNull();
+        });
+
+        it('is the regular field outside the portrait touch chrome', () => {
+            fixture.componentRef.setInput('touchChrome', 'landscape');
+            fixture.detectChanges();
+
+            expect(toggle()).toBeNull();
+            expect(field()?.hasAttribute('data-tv-back-layer')).toBe(false);
+            const escape = new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            });
+            field()?.dispatchEvent(escape);
+            expect(escape.defaultPrevented).toBe(false);
+        });
+    });
+
     it('does not render the context drawer toggle by default', () => {
         expect(
             fixture.nativeElement.querySelector(

@@ -27,6 +27,7 @@ import {
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { ImeInputDirective } from '@iptvnator/ui/components';
 import { WorkspaceHeaderSidebarToggle } from '../../services/helpers/workspace-shell-constants';
+import { HeaderTouchSearch } from './header-touch-search';
 import { LayoutSlideDirective } from '../../layout-slide.directive';
 import {
     clampOverflowCount,
@@ -73,6 +74,9 @@ export class WorkspaceShellHeaderComponent {
     private readonly contextDrawerToggle = viewChild('contextDrawerToggle', {
         read: ElementRef<HTMLButtonElement>,
     });
+    private readonly touchSearchToggle = viewChild('touchSearchToggle', {
+        read: ElementRef<HTMLButtonElement>,
+    });
 
     readonly isMac =
         typeof navigator !== 'undefined' &&
@@ -114,6 +118,17 @@ export class WorkspaceShellHeaderComponent {
      * bar replaces the rail, so Settings moves here as a gear.
      */
     readonly touchChrome = input<'portrait' | 'landscape' | null>(null);
+    /**
+     * In portrait the search field is a header icon until it is used: the
+     * icon expands it over the header row. A term keeps it expanded.
+     */
+    readonly touchSearch = new HeaderTouchSearch({
+        touchChrome: this.touchChrome,
+        searchQuery: this.searchQuery,
+        toggle: this.touchSearchToggle,
+        clearSearch: () => this.searchChanged.emit(''),
+        injector: this.injector,
+    });
     /**
      * Parental lock indicator: `off` hides the button, `locked` offers the
      * PIN prompt, `unlocked` offers "Lock now".
@@ -297,7 +312,16 @@ export class WorkspaceShellHeaderComponent {
         this.searchInput()?.nativeElement.focus();
     }
 
+    /** Focuses the search field, expanding the touch chrome's icon first. */
     focusSearchInput(options: { select?: boolean } = {}): void {
+        if (
+            !this.touchSearch.expandThen(() => this.focusSearchField(options))
+        ) {
+            this.focusSearchField(options);
+        }
+    }
+
+    private focusSearchField(options: { select?: boolean }): void {
         const inputElement = this.searchInput()?.nativeElement;
         if (!inputElement || inputElement.disabled) {
             return;

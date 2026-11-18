@@ -966,9 +966,14 @@
             return true;
         }
         // An open app layer that Back closes before anything navigates (touch mode: the Play
-        // dial, the expanded header search). It marks itself and handles Escape.
-        var layer = document.querySelector('[data-tv-back-layer]');
-        if (layer && isVisible(layer)) {
+        // dial, the expanded header search). It marks itself and handles Escape. With several
+        // open, the last in document order is on top (the dial comes after the header).
+        var layers = document.querySelectorAll('[data-tv-back-layer]');
+        var layer = null;
+        for (var li = layers.length - 1; li >= 0 && !layer; li--) {
+            if (isVisible(layers[li])) layer = layers[li];
+        }
+        if (layer) {
             var closeLayer = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
             closeLayer.__tvshell = true;
             layer.dispatchEvent(closeLayer);

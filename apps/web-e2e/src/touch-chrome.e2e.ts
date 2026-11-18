@@ -86,6 +86,55 @@ test.describe('tv-shell touch mode, phone in portrait', () => {
         ).toBeVisible();
     });
 
+    test('@mobile the header search icon expands the field with the category scope', async ({
+        page,
+    }) => {
+        await page.locator('[data-test-id="context-drawer-toggle"]').click();
+        await page.locator('.context-panel .category-item').first().click();
+        await page.waitForURL(/\/vod\/\d+/);
+        const categoryUrl = page.url();
+        const firstTitle = page.locator('app-grid-list .title').first();
+        await expect(firstTitle).toBeVisible();
+        const term = ((await firstTitle.textContent()) ?? '')
+            .trim()
+            .slice(0, 3)
+            .trim();
+
+        const input = page.locator('#workspace-shell-search-input');
+        const toggle = page.locator('[data-test-id="header-touch-search"]');
+        await expect(input).toHaveCount(0);
+        await toggle.click();
+        await expect(input).toBeFocused();
+        await input.fill(term);
+
+        const field = page.locator(
+            '[data-test-id="header-touch-search-field"]'
+        );
+        await expect(field).toHaveAttribute('data-tv-back-layer', '');
+        // The field has the header row, so the placeholder and the chip fit.
+        expect((await field.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+        await expect(
+            page.locator('[data-test-id="playlist-switcher-trigger"]')
+        ).toBeHidden();
+        await expect(
+            field.locator('[data-test-id="workspace-search-scope-clear"]')
+        ).toBeVisible();
+        await expect(
+            page.locator('[data-test-id="workspace-search-scope"]')
+        ).toBeVisible();
+        await expect(page).toHaveURL(
+            new RegExp(`q=${encodeURIComponent(term)}`)
+        );
+
+        // Escape is what the tv-shell's Back sends to an open layer: it clears
+        // and collapses without leaving the category.
+        await input.press('Escape');
+        await expect(field).toHaveCount(0);
+        await expect(toggle).toBeFocused();
+        await expect(page).not.toHaveURL(/[?&]q=/);
+        expect(page.url().split('?')[0]).toBe(categoryUrl.split('?')[0]);
+    });
+
     test('@mobile the bar covers neither the live guide tab nor snack bars', async ({
         page,
     }) => {
