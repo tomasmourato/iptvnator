@@ -104,7 +104,10 @@ from the configured `--www` directory, with symbolic links confined to that dire
   bar replaces the app's top bar (Home, Sources, Play, Favorites, Recent;
   Settings becomes a header gear). Play opens a dial with the source's
   sections. Search is a header icon that expands the field over the header
-  row, with the category scope in it. Back closes an open dial or search
+  row, with the category scope in it. Held sideways, Play takes the
+  source's place in the side rail, the context panel (categories) becomes
+  the drawer phones use, opened from the header, and live TV keeps a 320px
+  channel list beside the player. Back closes an open dial or search
   before it navigates: an app layer marked `data-tv-back-layer` gets Escape
   right after dialogs (the last one in document order when several are
   open). This touch chrome is fork-only for now and gated on the shell

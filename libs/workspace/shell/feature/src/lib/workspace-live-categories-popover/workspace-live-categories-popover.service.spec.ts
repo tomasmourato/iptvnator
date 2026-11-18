@@ -22,6 +22,7 @@ import {
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import { WorkspaceContextPanelComponent } from '../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceShellRouteStateService } from '../workspace-shell/services/workspace-shell-route-state.service';
+import { WorkspaceTouchLayoutService } from '../workspace-touch-chrome/workspace-touch-layout.service';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
 import { WorkspaceLiveCategoriesPopoverService } from './workspace-live-categories-popover.service';
 
@@ -56,6 +57,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         }
         TestBed.inject(ApplicationRef).tick();
     }
+    const touchMode = signal<'portrait' | 'landscape' | null>(null);
 
     // Portal-attached views render on the next application tick; no fixture
     // drives change detection here.
@@ -76,6 +78,7 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         drawer.open.mockClear();
         phoneViewport = false;
         compactListeners = [];
+        touchMode.set(null);
         Object.defineProperty(window, 'matchMedia', {
             configurable: true,
             writable: true,
@@ -104,6 +107,10 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
                 {
                     provide: WorkspaceShellContextDrawerService,
                     useValue: drawer,
+                },
+                {
+                    provide: WorkspaceTouchLayoutService,
+                    useValue: { mode: touchMode },
                 },
                 {
                     provide: Router,
@@ -203,6 +210,18 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
         expect(sidebarState.stateOf('portal')()).toBe('expanded');
         expect(pane()).toBeNull();
         expect(drawer.open).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the drawer instead of the popover in touch landscape, where the rail is that drawer', () => {
+        touchMode.set('landscape');
+        open();
+
+        expect(pane()).toBeNull();
+        expect(drawer.open).toHaveBeenCalledTimes(1);
+
+        service.showCategoriesPanel();
+        expect(sidebarState.stateOf('portal')()).toBe('expanded');
+        expect(drawer.open).toHaveBeenCalledTimes(2);
     });
 
     it('closes after a category selection', () => {

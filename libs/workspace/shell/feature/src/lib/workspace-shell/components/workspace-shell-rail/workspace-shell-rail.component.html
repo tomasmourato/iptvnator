@@ -3,7 +3,12 @@
 <aside class="app-rail" [class.is-macos]="isMacOS()">
     <app-workspace-shell-rail-links [links]="workspaceLinks()" />
 
-    @if (primaryContextLinks().length > 0) {
+    <!-- Fork-only (tv-shell touch mode, phone held sideways): the shell
+         projects the touch chrome's Play, which gathers the source's
+         sections, in place of the provider region. -->
+    @if (touchPlay()) {
+        <ng-content />
+    } @else if (primaryContextLinks().length > 0) {
         <div class="rail-context-region" [class]="railProviderClass()">
             <app-workspace-shell-rail-links
                 activeClass="is-active"

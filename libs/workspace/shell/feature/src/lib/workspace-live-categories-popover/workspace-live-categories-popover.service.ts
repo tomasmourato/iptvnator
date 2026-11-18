@@ -16,6 +16,7 @@ import {
     LiveLayoutSidebarStateService,
 } from '@iptvnator/portal/shared/util';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { WorkspaceTouchLayoutService } from '../workspace-touch-chrome/workspace-touch-layout.service';
 import { WorkspaceLiveCategoriesPopoverComponent } from './workspace-live-categories-popover.component';
 
 /**
@@ -42,6 +43,11 @@ export class WorkspaceLiveCategoriesPopoverService implements LiveCategoriesPopo
     private readonly injector = inject(Injector);
     private readonly sidebarState = inject(LiveLayoutSidebarStateService);
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
+    // Fork-only: a phone held sideways in the tv-shell's touch mode shows the
+    // categories rail as the drawer, whatever its fold level.
+    private readonly touchLayout = inject(WorkspaceTouchLayoutService, {
+        optional: true,
+    });
     private overlayRef: OverlayRef | null = null;
     private origin: HTMLElement | null = null;
 
@@ -73,6 +79,10 @@ export class WorkspaceLiveCategoriesPopoverService implements LiveCategoriesPopo
     }
 
     open(origin: HTMLElement): void {
+        if (this.isTouchLandscape()) {
+            this.contextDrawer.open();
+            return;
+        }
         if (this.overlayRef && this.origin === origin) {
             this.close();
             return;
@@ -133,11 +143,16 @@ export class WorkspaceLiveCategoriesPopoverService implements LiveCategoriesPopo
     showCategoriesPanel(): void {
         this.close();
         this.sidebarState.showCategories('portal');
-        // At phone widths the rail renders as the off-canvas context drawer,
-        // whose open state the fold level does not drive.
-        if (isPhoneViewport()) {
+        // At phone widths (and in touch landscape) the rail renders as the
+        // off-canvas context drawer, whose open state the fold level does
+        // not drive.
+        if (isPhoneViewport() || this.isTouchLandscape()) {
             this.contextDrawer.open();
         }
+    }
+
+    private isTouchLandscape(): boolean {
+        return this.touchLayout?.mode() === 'landscape';
     }
 
     close(): void {

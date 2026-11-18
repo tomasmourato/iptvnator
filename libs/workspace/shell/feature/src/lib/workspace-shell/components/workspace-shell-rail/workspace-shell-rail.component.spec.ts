@@ -1,4 +1,9 @@
-import { Component, input, ChangeDetectionStrategy } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    input,
+    signal,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -20,6 +25,27 @@ class MockWorkspaceShellRailLinksComponent {
     readonly links = input<unknown[]>([]);
     readonly selectedSection = input<string | null>(null);
     readonly activeClass = input('active');
+}
+
+@Component({
+    imports: [WorkspaceShellRailComponent],
+    template: `<app-workspace-shell-rail
+        [touchPlay]="touchPlay()"
+        [primaryContextLinks]="links"
+        ><span class="projected-play"></span
+    ></app-workspace-shell-rail>`,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class RailWithTouchPlayHostComponent {
+    readonly touchPlay = signal(true);
+    readonly links = [
+        {
+            icon: 'movie',
+            tooltip: 'Movies',
+            path: ['/workspace', 'xtreams', 'pl-1', 'vod'],
+            section: 'vod',
+        },
+    ];
 }
 
 describe('WorkspaceShellRailComponent', () => {
@@ -83,6 +109,24 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+    });
+
+    it('shows the projected touch Play instead of the provider region', () => {
+        const host = TestBed.createComponent(RailWithTouchPlayHostComponent);
+        host.detectChanges();
+        const rail: HTMLElement = host.nativeElement;
+
+        expect(rail.querySelector('.rail-context-region')).toBeNull();
+        expect(rail.querySelector('.app-rail .projected-play')).not.toBeNull();
+        // Settings stays in the rail's footer.
+        expect(
+            rail.querySelector('.rail-footer .rail-shortcut')
+        ).not.toBeNull();
+
+        host.componentInstance.touchPlay.set(false);
+        host.detectChanges();
+        expect(rail.querySelector('.rail-context-region')).not.toBeNull();
+        expect(rail.querySelector('.projected-play')).toBeNull();
     });
 
     it('has no brand mark duplicating the first workspace link', () => {

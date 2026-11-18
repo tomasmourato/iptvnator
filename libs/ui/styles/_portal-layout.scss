@@ -349,4 +349,20 @@
             max-height: 35vh;
         }
     }
+
+    // A phone held sideways: about 300px of page height under the header.
+    // The 400px list left the player a strip, and the guide's 180px floor
+    // left the video less than half the column. The list keeps 320px beside
+    // the player, and an open guide takes at most 40% of the column, so the
+    // video keeps 60% or more. Collapsing the guide gives it the rest.
+    @media (pointer: coarse) and (max-height: 500px) and (orientation: landscape) and (min-width: 641px) {
+        .sidebar:not(.sidebar-collapsed) {
+            width: 320px !important;
+            min-width: 0 !important;
+        }
+
+        .epg.epg--inline {
+            --epg-inline-height: 40%;
+        }
+    }
 }
