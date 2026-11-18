@@ -2,6 +2,8 @@
 
 <div
     class="workspace-shell"
+    [attr.data-touch-chrome]="touchLayout.mode()"
+    [attr.data-touch-keyboard]="touchLayout.keyboardOpen() ? '' : null"
     appPlaylistDropZone
     #dropZone="playlistDropZone"
     [appTrafficLightsClearance]="facade.isMacOS"
@@ -48,6 +50,7 @@
         [isDownloadsView]="facade.isDownloadsView()"
         [activeDownloadsCount]="facade.activeDownloadsCount()"
         [isSettingsRoute]="facade.isSettingsRoute()"
+        [touchChrome]="touchLayout.mode()"
         [parentalLockState]="facade.parentalLockState()"
         [showContextDrawerToggle]="facade.hasContextPanelContent()"
         [isContextDrawerOpen]="drawerOpen"
@@ -155,6 +158,21 @@
                     (artworkClicked)="facade.openActiveExternalSessionTarget()"
                 />
             </footer>
+        }
+    }
+
+    <!-- Fork-only (tv-shell touch mode, phone in portrait): the bottom bar
+         with the speed-dial Play replaces the top bar. Deferred, so its code
+         and styles load only there. -->
+    @if (touchLayout.mode() === 'portrait') {
+        @defer (on immediate) {
+            <app-workspace-touch-bottom-bar
+                [attr.inert]="drawerOpen ? '' : null"
+                [workspaceLinks]="facade.workspaceLinks()"
+                [primaryContextLinks]="facade.primaryContextLinks()"
+                [secondaryContextLinks]="facade.secondaryContextLinks()"
+                [currentSection]="facade.currentSection()"
+            />
         }
     }
 </div>

@@ -395,6 +395,25 @@ describe('WorkspaceShellHeaderComponent', () => {
         }
     );
 
+    it('shows the Settings gear only with the portrait touch chrome', () => {
+        const gear = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-touch-settings"]'
+            );
+        expect(gear()).toBeNull();
+
+        fixture.componentRef.setInput('touchChrome', 'portrait');
+        fixture.detectChanges();
+        expect(gear()?.getAttribute('aria-label')).toBe(
+            'WORKSPACE.SHELL.OPEN_SETTINGS'
+        );
+
+        // The landscape rail keeps its own Settings link.
+        fixture.componentRef.setInput('touchChrome', 'landscape');
+        fixture.detectChanges();
+        expect(gear()).toBeNull();
+    });
+
     it('does not render the context drawer toggle by default', () => {
         expect(
             fixture.nativeElement.querySelector(

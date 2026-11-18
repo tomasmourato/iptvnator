@@ -100,7 +100,12 @@ from the configured `--www` directory, with symbolic links confined to that dire
   follows Android's dark theme, live: the system WebView reports a light
   colour scheme whatever that setting is, so a document-start script
   (`assets/tvshell/color-scheme.js`, touch mode only) answers the page's
-  `prefers-color-scheme` queries from it.
+  `prefers-color-scheme` queries from it. On a phone in portrait a bottom
+  bar replaces the app's top bar (Home, Sources, Play, Favorites, Recent;
+  Settings becomes a header gear). Play opens a dial with the source's
+  sections. Back closes an open dial before it navigates: an app layer
+  marked `data-tv-back-layer` gets Escape right after dialogs. This touch
+  chrome is fork-only for now and gated on the shell descriptor's touch mode.
 - **Shell capability descriptor**: `assets/app-config.js` carries
   `__IPTVNATOR_CONFIG__.SHELL` (`kind`, `mode`, `features`, optional
   `preferredPlayer`), which the app reads through `RuntimeCapabilitiesService`

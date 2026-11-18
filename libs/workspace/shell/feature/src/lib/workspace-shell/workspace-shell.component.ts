@@ -22,6 +22,8 @@ import { WorkspaceShellContextSidebarComponent } from './components/workspace-sh
 import { WorkspaceShellHeaderComponent } from './components/workspace-shell-header/workspace-shell-header.component';
 import { WorkspaceShellImportOverlayComponent } from './components/workspace-shell-import-overlay/workspace-shell-import-overlay.component';
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
+import { WorkspaceTouchBottomBarComponent } from '../workspace-touch-chrome/workspace-touch-bottom-bar.component';
+import { WorkspaceTouchLayoutService } from '../workspace-touch-chrome/workspace-touch-layout.service';
 import { WorkspaceShellSearchScopeComponent } from './components/workspace-shell-search-scope/workspace-shell-search-scope.component';
 import { WorkspaceShellServerBannerComponent } from './components/workspace-shell-server-banner/workspace-shell-server-banner.component';
 import { LayoutSlideDirective } from './layout-slide.directive';
@@ -60,6 +62,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellRailComponent,
         WorkspaceShellSearchScopeComponent,
         WorkspaceShellServerBannerComponent,
+        WorkspaceTouchBottomBarComponent,
     ],
     templateUrl: './workspace-shell.component.html',
     styleUrl: './workspace-shell.component.scss',
@@ -70,6 +73,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellSearchSyncService,
         WorkspaceShellSearchService,
         WorkspaceShellSearchScopeService,
+        WorkspaceTouchLayoutService,
         WorkspaceShellHeaderService,
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
@@ -91,6 +95,8 @@ export class WorkspaceShellComponent {
     readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
     readonly searchScope = inject(WorkspaceShellSearchScopeService);
     readonly isPhone = injectPhoneLayout();
+    /** Fork-only touch chrome (tv-shell touch mode); null elsewhere. */
+    readonly touchLayout = inject(WorkspaceTouchLayoutService);
     private readonly mpvOverlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
     );

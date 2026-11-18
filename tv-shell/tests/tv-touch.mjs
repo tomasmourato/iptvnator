@@ -97,7 +97,33 @@ try {
     check((await rings()).focus === 0, 'arrow keys do not drive a TV focus ring');
     await page.screenshot({ path: join(SHOTS, 'touch-channel-list.png') });
 
-    console.log('4. Back still goes through the shell layer');
+    console.log('4. touch chrome: the bottom bar, the Play dial and Back');
+    const bar = page.locator('[data-test-id="touch-bottom-bar"]');
+    await bar.waitFor({ state: 'visible', timeout: 10000 });
+    const chrome = await page.evaluate(() => {
+        const rail = document.querySelector('app-workspace-shell-rail');
+        const content = document.querySelector('main.workspace-content')?.getBoundingClientRect();
+        const barBox = document.querySelector('[data-test-id="touch-bottom-bar"]')?.getBoundingClientRect();
+        return {
+            railHidden: !rail || getComputedStyle(rail).display === 'none',
+            contentAboveBar: !!content && !!barBox && content.bottom <= barBox.top + 1,
+            gear: !!document.querySelector('[data-test-id="header-touch-settings"]'),
+        };
+    });
+    check(chrome.railHidden, 'the top bar gives way to the bottom bar');
+    check(chrome.contentAboveBar, 'the routed content ends above the bar');
+    check(chrome.gear, 'Settings is a gear in the header');
+    const beforeDial = page.url();
+    await touch(page.locator('[data-test-id="touch-play"]'));
+    const dial = page.locator('[data-test-id="touch-play-dial"]');
+    await dial.waitFor({ state: 'visible' });
+    check((await dial.locator('[role="menuitem"]').count()) >= 2, "Play's dial lists the source's sections");
+    const dialBack = await page.evaluate(() => window.__tvShell.back());
+    await page.waitForTimeout(500);
+    check(dialBack === true && (await dial.count()) === 0, 'Back closes the dial first');
+    check(page.url() === beforeDial, 'and does not navigate (still ' + new URL(page.url()).pathname + ')');
+
+    console.log('5. Back still goes through the shell layer');
     const before = new URL(page.url()).pathname;
     await page.goto(URL_ + '/workspace/settings', { waitUntil: 'networkidle' });
     const consumed = await page.evaluate(() => window.__tvShell.back());

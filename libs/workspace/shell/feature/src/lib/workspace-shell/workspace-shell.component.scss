@@ -264,3 +264,21 @@ app-workspace-shell-context-sidebar {
         grid-row: 4;
     }
 }
+
+// Fork-only (tv-shell touch mode): the touch chrome's structure, here so the
+// layout does not jump while its deferred styles load. Phone in portrait: the
+// bottom bar (workspace-touch-chrome) replaces the top bar and keeps its 64px;
+// with the soft keyboard up it steps aside and gives the space back.
+.workspace-shell[data-touch-chrome='portrait'] {
+    box-sizing: border-box;
+    padding-bottom: 64px;
+
+    app-workspace-shell-rail {
+        display: none;
+    }
+
+    &[data-touch-keyboard] {
+        padding-bottom: 0;
+    }
+}
+

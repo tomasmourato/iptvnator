@@ -60,7 +60,13 @@ abandonne (le son sans l'image). Le thème *Système* de l'application suit le
 thème sombre d'Android, en direct : la WebView du système annonce un schéma
 de couleurs clair quel que soit ce réglage, donc un script de début de document
 (`assets/tvshell/color-scheme.js`, mode tactile seulement) répond à sa place
-aux requêtes `prefers-color-scheme` de la page.
+aux requêtes `prefers-color-scheme` de la page. Sur un téléphone en portrait,
+une barre en bas remplace la barre du haut de l'application (Accueil, Sources,
+Lecture, Favoris, Récents ; les Réglages deviennent un engrenage dans l'en-tête).
+Lecture ouvre un menu avec les sections de la source. Retour ferme ce menu avant
+de naviguer : une couche marquée `data-tv-back-layer` reçoit Échap juste après
+les dialogues. Cette interface tactile est propre au fork pour l'instant et ne
+s'active qu'en mode tactile du descripteur du shell.
 
 ## Réglages de IPTVnator (appui long sur Menu ou sur Retour)
 

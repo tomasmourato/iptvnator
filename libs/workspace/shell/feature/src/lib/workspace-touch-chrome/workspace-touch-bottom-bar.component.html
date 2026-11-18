@@ -1,0 +1,31 @@
+<nav class="touch-bottom-bar" data-test-id="touch-bottom-bar">
+    @for (link of before(); track link.path.join('/')) {
+        <ng-container *ngTemplateOutlet="slot; context: { $implicit: link }" />
+    }
+    <app-workspace-touch-play
+        placement="above"
+        [primary]="primaryContextLinks()"
+        [secondary]="secondaryContextLinks()"
+        [currentSection]="currentSection()"
+    />
+    @for (link of after(); track link.path.join('/')) {
+        <ng-container *ngTemplateOutlet="slot; context: { $implicit: link }" />
+    }
+</nav>
+
+<ng-template #slot let-link>
+    <a
+        class="touch-bottom-bar__item"
+        routerLinkActive="is-active"
+        [routerLink]="link.path"
+        [routerLinkActiveOptions]="{ exact: !!link.exact }"
+        [attr.data-test-id]="
+            'touch-bar-' + link.path.join('/').split('/').pop()
+        "
+    >
+        <span class="touch-bottom-bar__icon">
+            <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+        </span>
+        <span class="touch-bottom-bar__label">{{ link.tooltip }}</span>
+    </a>
+</ng-template>

@@ -166,6 +166,18 @@
         >
             <mat-icon>add</mat-icon>
         </button>
+        @if (touchChrome() === 'portrait') {
+            <a
+                mat-icon-button
+                class="header-shortcut"
+                routerLink="/workspace/settings"
+                data-test-id="header-touch-settings"
+                [class.is-active]="isSettingsRoute()"
+                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
+            >
+                <mat-icon>settings</mat-icon>
+            </a>
+        }
         @if (parentalLockState() !== 'off') {
             <button
                 type="button"
