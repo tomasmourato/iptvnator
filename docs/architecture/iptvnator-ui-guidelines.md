@@ -1753,6 +1753,12 @@ panel and the channel list), capping both lists still leaves the video a
 sliver. Give the player container a `min-height` instead and let the lists
 shrink into what is left.
 
+A phone held sideways is wider than 640px but has about 300px of page under
+the header. Key it on
+`(pointer: coarse) and (max-height: 500px) and (orientation: landscape)`:
+the live layouts keep a 320px channel list beside the player there, and an
+open guide takes at most 40% of the column, so the video keeps 60% or more.
+
 ### What to drop
 
 Prefer removing a control over shrinking everything around it:

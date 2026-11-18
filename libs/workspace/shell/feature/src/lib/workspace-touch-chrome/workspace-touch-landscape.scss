@@ -1,0 +1,106 @@
+// Global (ViewEncapsulation.None) and loaded only with the deferred rail Play,
+// so every rule is scoped to the tv-shell touch chrome in landscape. Adapted
+// from the UX review mockup (3a-A-compact-landscape). Beside a 359px tall
+// page a 300px context panel left the channel list and the player a strip
+// each, so the panel becomes the drawer phones use (the context sidebar's
+// own phone block, repeated here for this chrome) and the header's drawer
+// toggle opens it. The selectors outrank the components' encapsulated ones.
+
+$shell: ".workspace-shell[data-touch-chrome='landscape']";
+
+app-workspace-touch-rail-play {
+    display: contents;
+}
+
+#{$shell} {
+    .workspace-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .context-drawer-toggle {
+        display: inline-flex;
+        flex-shrink: 0;
+    }
+
+    .context-drawer-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 950;
+        background: rgb(0 0 0 / 40%);
+    }
+
+    // `:not([hidden])`: a route without a context panel still hides it.
+    app-workspace-shell-context-sidebar:not([hidden]) {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 951;
+        display: flex;
+        flex-direction: column;
+        width: min(320px, 85vw);
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition:
+            transform 200ms ease,
+            visibility 0s linear 200ms;
+        background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+        box-shadow: 8px 0 24px rgb(0 0 0 / 30%);
+
+        &.drawer-open {
+            transform: translateX(0);
+            visibility: visible;
+            transition:
+                transform 200ms ease,
+                visibility 0s;
+        }
+    }
+
+    .context-drawer-header {
+        display: flex;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        padding: 8px 8px 0;
+    }
+
+    .context-drawer-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--app-on-surface, var(--mat-sys-on-surface));
+        cursor: pointer;
+    }
+
+    // ResizableDirective writes the desktop width inline, and the live
+    // layout's fold state collapses the panel: neither applies in a drawer
+    // the user opened.
+    .context-panel,
+    .context-panel--collapsed {
+        box-sizing: border-box;
+        flex: 1 1 auto;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        height: auto;
+        min-height: 0;
+    }
+
+    .context-panel--collapsed {
+        padding: 12px 10px 10px 12px !important;
+    }
+
+    .context-panel--route,
+    .context-panel--sources {
+        overflow: hidden;
+    }
+
+    .context-panel .resize-handle {
+        display: none;
+    }
+}

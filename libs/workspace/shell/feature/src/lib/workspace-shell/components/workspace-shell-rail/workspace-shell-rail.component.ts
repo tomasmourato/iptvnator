@@ -42,6 +42,8 @@ export class WorkspaceShellRailComponent {
     >(null);
     readonly railProviderClass = input('rail-context-region');
     readonly isSettingsRoute = input(false);
+    /** Show the projected touch Play instead of the provider region. */
+    readonly touchPlay = input(false);
 
     /** Self-hosted server storage: hidden while `inactive`. */
     readonly serverState = inject(ServerStorageStatusService).state;

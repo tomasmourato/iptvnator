@@ -48,6 +48,7 @@ class MockWorkspaceShellRailComponent {
     readonly selectedSection = input<string | null>(null);
     readonly railProviderClass = input('');
     readonly isSettingsRoute = input(false);
+    readonly touchPlay = input(false);
 }
 
 @Component({
@@ -819,5 +820,95 @@ describe('WorkspaceShellComponent', () => {
 
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
+    });
+    it('closes the drawer when the touch chrome changes and gives the rail Play in landscape', async () => {
+        const mode = signal<'portrait' | 'landscape' | null>('landscape');
+
+        await TestBed.configureTestingModule({
+            imports: [WorkspaceShellComponent],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
+        })
+            .overrideComponent(WorkspaceShellComponent, {
+                set: {
+                    imports: [
+                        CdkTrapFocus,
+                        RouterOutlet,
+                        TranslatePipe,
+                        MockExternalPlaybackDockComponent,
+                        MockPlaylistDropOverlayComponent,
+                        MockPlaylistDropZoneDirective,
+                        MockWorkspaceShellContextSidebarComponent,
+                        MockWorkspaceShellHeaderComponent,
+                        MockWorkspaceShellImportOverlayComponent,
+                        MockWorkspaceShellRailComponent,
+                        MockWorkspaceShellServerBannerComponent,
+                        TrafficLightsClearanceDirective,
+                        LayoutSlideDirective,
+                    ],
+                    providers: [
+                        {
+                            provide: WorkspaceShellFacade,
+                            useValue: new MockWorkspaceShellFacade(),
+                        },
+                        {
+                            provide: WorkspaceKeyboardShortcutsService,
+                            useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
+                        {
+                            provide: WorkspaceShellSearchScopeService,
+                            useValue: { view: () => null },
+                        },
+                        {
+                            provide: WorkspaceTouchLayoutService,
+                            useValue: { mode, keyboardOpen: () => false },
+                        },
+                    ],
+                },
+            })
+            .compileComponents();
+
+        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        fixture.detectChanges();
+        const rail = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellRailComponent)
+        ).componentInstance as MockWorkspaceShellRailComponent;
+        expect(rail.touchPlay()).toBe(true);
+
+        const drawer = fixture.debugElement.injector.get(
+            WorkspaceShellContextDrawerService
+        );
+        drawer.open();
+        fixture.detectChanges();
+        expect(drawer.isOpen()).toBe(true);
+
+        // Rotated, or unfolded past the short-screen query: no drawer left
+        // open (and everything else inert) beside an in-flow panel.
+        mode.set(null);
+        fixture.detectChanges();
+        expect(drawer.isOpen()).toBe(false);
+        expect(rail.touchPlay()).toBe(false);
     });
 });

@@ -24,6 +24,7 @@ import { WorkspaceShellImportOverlayComponent } from './components/workspace-she
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
 import { WorkspaceTouchBottomBarComponent } from '../workspace-touch-chrome/workspace-touch-bottom-bar.component';
 import { WorkspaceTouchLayoutService } from '../workspace-touch-chrome/workspace-touch-layout.service';
+import { WorkspaceTouchRailPlayComponent } from '../workspace-touch-chrome/workspace-touch-rail-play.component';
 import { WorkspaceShellSearchScopeComponent } from './components/workspace-shell-search-scope/workspace-shell-search-scope.component';
 import { WorkspaceShellServerBannerComponent } from './components/workspace-shell-server-banner/workspace-shell-server-banner.component';
 import { LayoutSlideDirective } from './layout-slide.directive';
@@ -63,6 +64,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
         WorkspaceShellSearchScopeComponent,
         WorkspaceShellServerBannerComponent,
         WorkspaceTouchBottomBarComponent,
+        WorkspaceTouchRailPlayComponent,
     ],
     templateUrl: './workspace-shell.component.html',
     styleUrl: './workspace-shell.component.scss',
@@ -134,6 +136,19 @@ export class WorkspaceShellComponent {
                 });
             }
             wasOpen = open;
+        });
+
+        // The touch landscape drawer has no width query to close it (the
+        // service's own covers phones): a change of touch chrome closes it,
+        // so it never stays open, and everything else inert, beside the
+        // in-flow panel of a wider layout.
+        let previousChrome = this.touchLayout.mode();
+        effect(() => {
+            const chrome = this.touchLayout.mode();
+            if (chrome !== previousChrome) {
+                previousChrome = chrome;
+                untracked(() => this.contextDrawer.close());
+            }
         });
 
         // The Embedded MPV native-view video surface is composited outside

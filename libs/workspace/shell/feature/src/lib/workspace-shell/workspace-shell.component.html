@@ -29,7 +29,22 @@
         [selectedSection]="facade.currentSection()"
         [railProviderClass]="facade.railProviderClass()"
         [isSettingsRoute]="facade.isSettingsRoute()"
-    />
+        [touchPlay]="touchLayout.mode() === 'landscape'"
+    >
+        <!-- Fork-only (tv-shell touch mode, phone held sideways): Play
+             gathers the source's sections in the rail, and the context
+             panel becomes the drawer. Deferred, so its code and styles load
+             only there. -->
+        @if (touchLayout.mode() === 'landscape') {
+            @defer (on immediate) {
+                <app-workspace-touch-rail-play
+                    [primaryContextLinks]="facade.primaryContextLinks()"
+                    [secondaryContextLinks]="facade.secondaryContextLinks()"
+                    [currentSection]="facade.currentSection()"
+                />
+            }
+        }
+    </app-workspace-shell-rail>
 
     <app-workspace-shell-header
         #workspaceHeader

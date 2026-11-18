@@ -65,6 +65,9 @@ une barre en bas remplace la barre du haut de l'application (Accueil, Sources,
 Lecture, Favoris, Récents ; les Réglages deviennent un engrenage dans l'en-tête).
 Lecture ouvre un menu avec les sections de la source. La recherche est une icône
 de l'en-tête qui déplie le champ sur toute la ligne, avec la catégorie active.
+Tenu à l'horizontale, Lecture prend la place de la source dans le rail latéral,
+le panneau de contexte (catégories) devient le tiroir des téléphones, ouvert
+depuis l'en-tête, et la TV en direct garde une liste de 320 px à côté du lecteur.
 Retour ferme ce menu ou la recherche avant de naviguer : une couche marquée
 `data-tv-back-layer` reçoit Échap juste après les dialogues (la dernière dans
 l'ordre du document s'il y en a plusieurs). Cette interface tactile est propre au fork pour l'instant et ne
