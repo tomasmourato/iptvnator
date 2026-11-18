@@ -21,6 +21,7 @@ import {
 import { LayoutSlideDirective } from './layout-slide.directive';
 import { TrafficLightsClearanceDirective } from './traffic-lights-clearance.directive';
 import { WorkspaceShellSearchScopeService } from './services/workspace-shell-search-scope.service';
+import { WorkspaceTouchLayoutService } from '../workspace-touch-chrome/workspace-touch-layout.service';
 import { WorkspaceShellComponent } from './workspace-shell.component';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
@@ -65,6 +66,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
     readonly canClearCategoryScope = input(false);
+    readonly touchChrome = input<unknown>(null);
     readonly headerShortcut = input<unknown>(null);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
@@ -294,6 +296,13 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceShellSearchScopeService,
                             useValue: { view: () => null },
                         },
+                        {
+                            provide: WorkspaceTouchLayoutService,
+                            useValue: {
+                                mode: () => null,
+                                keyboardOpen: () => false,
+                            },
+                        },
                     ],
                 },
             })
@@ -396,6 +405,13 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceShellSearchScopeService,
                             useValue: { view: () => null },
                         },
+                        {
+                            provide: WorkspaceTouchLayoutService,
+                            useValue: {
+                                mode: () => null,
+                                keyboardOpen: () => false,
+                            },
+                        },
                     ],
                 },
             })
@@ -480,6 +496,13 @@ describe('WorkspaceShellComponent', () => {
                         {
                             provide: WorkspaceShellSearchScopeService,
                             useValue: { view: () => null },
+                        },
+                        {
+                            provide: WorkspaceTouchLayoutService,
+                            useValue: {
+                                mode: () => null,
+                                keyboardOpen: () => false,
+                            },
                         },
                     ],
                 },
@@ -586,6 +609,13 @@ describe('WorkspaceShellComponent', () => {
                         {
                             provide: WorkspaceShellSearchScopeService,
                             useValue: { view: () => null },
+                        },
+                        {
+                            provide: WorkspaceTouchLayoutService,
+                            useValue: {
+                                mode: () => null,
+                                keyboardOpen: () => false,
+                            },
                         },
                     ],
                 },

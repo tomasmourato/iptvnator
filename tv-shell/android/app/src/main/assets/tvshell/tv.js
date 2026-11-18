@@ -13,7 +13,8 @@
  *                      focused <video> — external player when it cannot play the
  *                      format (or video.js is in error) —,
  *                      soft keyboard on text fields).
- *   Back             → window.__tvShell.back(): closes overlays (Escape), leaves
+ *   Back             → window.__tvShell.back(): closes overlays (Escape), then an
+ *                      app layer marked data-tv-back-layer (Escape), leaves
  *                      fullscreen, goes back in history, finally asks the shell
  *                      to exit.
  *   Menu             → window.__tvShell.menu(): context menu on the focused item.
@@ -962,6 +963,15 @@
                     if (!document.activeElement || document.activeElement === document.body) focusFirst();
                 }, 120);
             }
+            return true;
+        }
+        // An open app layer that Back closes before anything navigates (touch mode: the Play
+        // dial, the expanded header search). It marks itself and handles Escape.
+        var layer = document.querySelector('[data-tv-back-layer]');
+        if (layer && isVisible(layer)) {
+            var closeLayer = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true });
+            closeLayer.__tvshell = true;
+            layer.dispatchEvent(closeLayer);
             return true;
         }
         if (document.fullscreenElement) {

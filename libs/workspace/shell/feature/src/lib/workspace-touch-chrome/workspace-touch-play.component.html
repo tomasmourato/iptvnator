@@ -1,0 +1,72 @@
+@let label = current()?.tooltip ?? ('XTREAM.PLAY' | translate);
+<button
+    #trigger
+    type="button"
+    class="touch-play"
+    [class.touch-play--beside]="placement() === 'beside'"
+    [class.is-open]="open()"
+    [class.is-current]="!!current()"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="open() ? ('CLOSE' | translate) : label"
+    data-test-id="touch-play"
+    (click)="toggle()"
+>
+    <span class="touch-play__icon">
+        <mat-icon aria-hidden="true">{{
+            open() ? 'close' : (current()?.icon ?? 'play_arrow')
+        }}</mat-icon>
+    </span>
+    @if (placement() === 'above') {
+        <span class="touch-play__label">{{
+            open() ? ('CLOSE' | translate) : label
+        }}</span>
+    }
+</button>
+
+@if (open()) {
+    <div
+        class="touch-play-scrim"
+        [class.touch-play-scrim--beside]="placement() === 'beside'"
+        aria-hidden="true"
+        (click)="close(false)"
+    ></div>
+    <div
+        #dial
+        class="touch-play-dial"
+        [class.touch-play-dial--beside]="placement() === 'beside'"
+        role="menu"
+        data-tv-back-layer
+        data-test-id="touch-play-dial"
+        (keydown.escape)="onEscape($event)"
+    >
+        @for (link of primary(); track link.path.join('/')) {
+            <a
+                class="touch-play-dial__item"
+                role="menuitem"
+                [class.is-current]="link === current()"
+                [routerLink]="link.path"
+                [attr.data-test-id]="
+                    'touch-play-' + (link.section ?? link.icon)
+                "
+                (click)="close(false)"
+            >
+                <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+                <span>{{ link.tooltip }}</span>
+            </a>
+        }
+        @if (secondary().length > 0) {
+            <div class="touch-play-dial__more">
+                @for (link of secondary(); track link.path.join('/')) {
+                    <a
+                        class="touch-play-dial__chip"
+                        role="menuitem"
+                        [routerLink]="link.path"
+                        (click)="close(false)"
+                        >{{ link.tooltip }}</a
+                    >
+                }
+            </div>
+        }
+    </div>
+}

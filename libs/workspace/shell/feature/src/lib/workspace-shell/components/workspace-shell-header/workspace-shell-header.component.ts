@@ -13,10 +13,11 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { MatIconButton } from '@angular/material/button';
+import { MatIconAnchor, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import {
@@ -46,12 +47,14 @@ const PHONE_VIEWPORT_QUERY = '(max-width: 640px)';
         ImeInputDirective,
         LayoutSlideDirective,
         MatIcon,
+        MatIconAnchor,
         MatIconButton,
         MatMenu,
         MatMenuItem,
         MatMenuTrigger,
         MatTooltip,
         PlaylistSwitcherComponent,
+        RouterLink,
         TranslatePipe,
     ],
     templateUrl: './workspace-shell-header.component.html',
@@ -106,6 +109,11 @@ export class WorkspaceShellHeaderComponent {
      * isSettingsRoute computed.
      */
     readonly isSettingsRoute = input(false);
+    /**
+     * Fork-only touch chrome (tv-shell touch mode). In portrait the bottom
+     * bar replaces the rail, so Settings moves here as a gear.
+     */
+    readonly touchChrome = input<'portrait' | 'landscape' | null>(null);
     /**
      * Parental lock indicator: `off` hides the button, `locked` offers the
      * PIN prompt, `unlocked` offers "Lock now".

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
@@ -38,6 +39,7 @@ describe('WorkspaceShellHeaderComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellHeaderComponent, NoopAnimationsModule],
             providers: [
+                provideRouter([]),
                 {
                     provide: TranslateService,
                     useValue: {
@@ -459,6 +461,25 @@ describe('WorkspaceShellHeaderComponent', () => {
             expect(button.getAttribute('aria-label')).toBe(expectedLabel);
         }
     );
+
+    it('shows the Settings gear only with the portrait touch chrome', () => {
+        const gear = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="header-touch-settings"]'
+            );
+        expect(gear()).toBeNull();
+
+        fixture.componentRef.setInput('touchChrome', 'portrait');
+        fixture.detectChanges();
+        expect(gear()?.getAttribute('aria-label')).toBe(
+            'WORKSPACE.SHELL.OPEN_SETTINGS'
+        );
+
+        // The landscape rail keeps its own Settings link.
+        fixture.componentRef.setInput('touchChrome', 'landscape');
+        fixture.detectChanges();
+        expect(gear()).toBeNull();
+    });
 
     it('does not render the context drawer toggle by default', () => {
         expect(
