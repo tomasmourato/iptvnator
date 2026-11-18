@@ -554,7 +554,11 @@ try {
         const viewport = document.querySelector('meta[name=viewport]').content;
         window.addEventListener('iptvnator:android-playback-result', (event) => {
             if (event.detail.id === id && event.detail.result?.started) {
-                window.__rotationResult = document.querySelector('meta[name=viewport]').content !== viewport;
+                // A pinned TV scale follows the new width in place; the touch page's
+                // device-width viewport has nothing to follow and stays as it is.
+                const now = document.querySelector('meta[name=viewport]').content;
+                window.__rotationResult = viewport.startsWith('width=device-width')
+                    ? now === viewport : now !== viewport;
             }
         });
         window.TvShell.postMessage(JSON.stringify(['playNative', id, {
