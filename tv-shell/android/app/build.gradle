@@ -4,6 +4,38 @@ plugins {
 
 def ffmpegBuildScript = rootProject.file('../scripts/build-media3-ffmpeg.sh')
 def ffmpegOutput = layout.buildDirectory.dir('generated/media3Ffmpeg')
+// The Media3 FFmpeg audio extension (AC-3) is built by a bash script that needs Linux or macOS.
+// -Ptvshell.media3Ffmpeg (or gradle.properties): unset builds it, except on Windows, where the
+// build continues without it and warns; "off" leaves it out (Media3 then plays without the AC-3
+// fallback); a directory uses a previous output of the script (java/, jniLibs/, assets/), for
+// example one built in WSL or downloaded from CI.
+def ffmpegSetting = (findProperty('tvshell.media3Ffmpeg') ?: '').toString().trim()
+def onWindows = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows')
+if (ffmpegSetting.isEmpty() && onWindows) {
+    logger.warn('tv-shell: the Media3 FFmpeg (AC-3) build needs Linux or macOS, so this APK has no '
+        + 'AC-3 fallback. Pass -Ptvshell.media3Ffmpeg=<dir> to use a prebuilt output, or =off to '
+        + 'silence this warning.')
+}
+def ffmpegMode = ffmpegSetting.isEmpty() ? (onWindows ? 'off' : 'build') : ffmpegSetting
+def ffmpegRoot = null
+if (ffmpegMode == 'build') {
+    ffmpegRoot = ffmpegOutput.get().asFile
+} else if (ffmpegMode != 'off') {
+    ffmpegRoot = file(ffmpegMode)
+    def jni = new File(ffmpegRoot, 'jniLibs')
+    def built = jni.isDirectory() && jni.listFiles().any { new File(it, 'libffmpegJNI.so').isFile() }
+    if (!built || !new File(ffmpegRoot, 'java').isDirectory()) {
+        throw new GradleException("tvshell.media3Ffmpeg: ${ffmpegRoot} is not an output of "
+            + 'scripts/build-media3-ffmpeg.sh (expected java/ and jniLibs/<abi>/libffmpegJNI.so). '
+            + 'Use "off" to build without the AC-3 fallback.')
+    }
+}
+// Plain directories, so a product flavor can move them to its own source set.
+ext.media3FfmpegDirs = ffmpegRoot == null ? [:] : [
+    java: new File(ffmpegRoot, 'java'),
+    jniLibs: new File(ffmpegRoot, 'jniLibs'),
+    assets: new File(ffmpegRoot, 'assets'),
+]
 
 android {
     namespace 'org.tvshell.iptvnator'
@@ -60,10 +92,12 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    sourceSets.main {
-        java.srcDir ffmpegOutput.map { it.dir('java') }
-        jniLibs.srcDir ffmpegOutput.map { it.dir('jniLibs') }
-        assets.srcDir ffmpegOutput.map { it.dir('assets') }
+    if (media3FfmpegDirs) {
+        sourceSets.main {
+            java.srcDir media3FfmpegDirs.java
+            jniLibs.srcDir media3FfmpegDirs.jniLibs
+            assets.srcDir media3FfmpegDirs.assets
+        }
     }
 
     packaging {
@@ -90,7 +124,7 @@ tasks.register('buildMedia3Ffmpeg', Exec) {
             ffmpegOutput.get().asFile
     }
 }
-tasks.named('preBuild').configure { dependsOn 'buildMedia3Ffmpeg' }
+if (ffmpegMode == 'build') tasks.named('preBuild').configure { dependsOn 'buildMedia3Ffmpeg' }
 
 dependencies {
     implementation project(':backend')

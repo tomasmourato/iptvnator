@@ -1,5 +1,8 @@
 /** Run against a debug APK on a test emulator. Requires ffmpeg with libx264.
  * ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
+ * For an APK built without the Media3 FFmpeg extension (-Ptvshell.media3Ffmpeg=off, the
+ * Windows default), set TVSHELL_NO_FFMPEG=1: the "AC-3" clip then carries AAC, so every flow
+ * still runs, but AC-3 decoding is not checked.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -15,6 +18,7 @@ const serial = process.argv[2];
 assert.ok(serial?.startsWith('emulator-') && process.env.ANDROID_HOME,
     'Set ANDROID_HOME and pass an emulator serial.');
 const app = 'org.tvshell.iptvnator';
+const withFfmpeg = process.env.TVSHELL_NO_FFMPEG !== '1';
 const adb = (...args) => execFileSync(join(process.env.ANDROID_HOME, 'platform-tools/adb'),
     ['-s', serial, ...args], { encoding: 'utf8', timeout: 20000 });
 const dumpLayout = () => adb('exec-out', 'uiautomator', 'dump', '--compressed', '/dev/tty');
@@ -42,7 +46,8 @@ try {
     const subtitles = join(fixtures, 'synthetic.srt');
     writeFileSync(subtitles, '1\n00:00:00,000 --> 00:00:20,000\nSynthetic subtitle\n');
     execFileSync('ffmpeg', ['-nostdin', '-loglevel', 'error', '-i', mp4, '-i', subtitles,
-        '-c:v', 'copy', '-c:a', 'ac3', '-ac', '6', '-metadata:s:s:0', 'language=eng',
+        '-c:v', 'copy', ...(withFfmpeg ? ['-c:a', 'ac3', '-ac', '6'] : ['-c:a', 'aac', '-ac', '2']),
+        '-metadata:s:s:0', 'language=eng',
         '-disposition:s:0', '0', mkv]);
     const unsupported = join(fixtures, 'synthetic-unsupported-video.mkv');
     // Theora has no Android video decoder. Leave an ordinary AAC track to
@@ -703,7 +708,8 @@ try {
     page = restoredPage;
     page.setDefaultTimeout(20000);
     await setExperiment(false);
-    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, WebView reload and failed writes, redirect header scope, extensionless HLS Back, AC-3 audio, captions natural VOD completion and external fallback');
+    console.log('PASS Android Media3 opt-in, mute handoff, VOD resume after Home, WebView reload and failed writes, redirect header scope, extensionless HLS Back, '
+        + (withFfmpeg ? 'AC-3 audio' : 'AAC in place of AC-3 (TVSHELL_NO_FFMPEG)') + ', captions natural VOD completion and external fallback');
 } finally {
     if (settingsOpen || topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
     await device?.close();

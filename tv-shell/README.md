@@ -268,7 +268,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm nx build web --configuration=pwa
 # 2. copy it into the shell
 tv-shell/scripts/bundle-pwa.sh dist/apps/web
-# 3. the APK (JDK 17 + Android SDK 36 + NDK r28c; macOS or x86-64 Linux)
+# 3. the APK (JDK 17 + Android SDK 36 + NDK r28c; on Windows, see below)
 sdkmanager "platforms;android-36" "ndk;28.2.13676358"
 cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
 # → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
@@ -279,6 +279,19 @@ for ARM and x86 devices. It dynamically links unmodified [FFmpeg 6.1.6 source](h
 under LGPL 2.1 or later. The exact sources and configure flags are pinned in
 [`scripts/build-media3-ffmpeg.sh`](scripts/build-media3-ffmpeg.sh). The APK workflow
 includes the matching FFmpeg source archive with its artifacts.
+
+The FFmpeg build needs macOS or x86-64 Linux. On Windows the APK builds without it
+and Gradle warns: Media3 then has no AC-3 fallback, and the NDK isn't needed. The
+`tvshell.media3Ffmpeg` Gradle property chooses explicitly, on any system:
+
+- `-Ptvshell.media3Ffmpeg=off` builds without the extension;
+- `-Ptvshell.media3Ffmpeg=/path/to/output` uses a previous output of
+  `scripts/build-media3-ffmpeg.sh` (its `java/`, `jniLibs/` and `assets/`
+  folders), for example one built in WSL:
+  `bash tv-shell/scripts/build-media3-ffmpeg.sh <linux-ndk> 25 <output>`.
+
+Run `tests/android-native-playback.mjs` with `TVSHELL_NO_FFMPEG=1` against an APK
+built without the extension.
 
 ## Installing on a Fire TV stick
 
