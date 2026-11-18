@@ -721,3 +721,68 @@ harness limit above. The other suites still have it.
    return to the page. Done by hand with a 3 s pause it works, so it looks
    like a timing problem in the test. Make the step wait until the settings
    window has focus before pressing Back.
+
+## UX batches 6–8: touch chrome (2026-11-18), stopped after batch 6
+
+Plan: batches 6–8 of [UX-REVIEW.md](UX-REVIEW.md), fork-only for now, gated on
+the shell capability descriptor's touch mode (`WorkspaceTouchLayoutService`:
+`'portrait'` at ≤640px, `'landscape'` on
+`(pointer: coarse) and (max-height: 500px) and (orientation: landscape)`, null
+elsewhere), as deferred components so the CSS stays out of initial bytes. The
+UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`).
+
+### Done: batch 6 (`307290cfd`)
+- Bottom bar (Home · Sources · Play · Favorites · Recent) with the speed-dial
+  Play, Settings as a header gear: `libs/workspace/shell/feature/src/lib/workspace-touch-chrome/`.
+- The user's three additions, as far as batch 6 goes:
+  1. **Keyboard:** done. The bar hides while the soft keyboard is open
+     (`soft-keyboard.ts`; checked on the AVD, visual viewport 840 → 528px).
+  2. **Back:** done for the dial. `tv.js` `api.back()` order is now dialogs →
+     an app layer marked `data-tv-back-layer` (Escape) → fullscreen → header
+     Back / history. `tv-touch.mjs` checks that Back closes the dial without
+     navigating; the check fails without the `tv.js` change.
+  3. **No overlaps:** done for the bar. The shell reserves the bar's 64px, so
+     routed content (the live Channels / Guide tabs included) ends above it;
+     snack bars get a 72px lift; the fullscreen player is in the top layer.
+     Covered by `touch-chrome.e2e.ts` and `tv-touch.mjs`.
+- Launch initial bytes 1,200,828 (batch 5: 1,200,860).
+- Known: at 411px the bar labels "Global favorites" and "Recently viewed"
+  truncate (they reuse the rail's translated tooltips).
+
+### Next
+1. **Batch 7, header search placement** (decision 3 and 4):
+   - in portrait, a search icon in the header that expands the existing
+     route-aware field over the header row, with the dismissible scope chip
+     visible inside it; batch 2's toggle row stays under it;
+   - arrow_back or Escape clears the term and collapses; an active `?q=`
+     stays expanded;
+   - **addition 2 for search:** the expanded field must carry
+     `data-tv-back-layer` and close on Escape, so Back collapses it before
+     navigating; extend `tv-touch.mjs` and `touch-chrome.e2e.ts`;
+   - **addition 1:** with the field focused the keyboard hides the bar
+     (already works through `soft-keyboard.ts`); re-check on the AVD.
+   - Header changes go in `workspace-shell-header.component.{ts,html}`
+     (`touchChrome` input already there); CSS in the deferred bar's global
+     styles, not the header stylesheet (near its budget).
+2. **Batch 8, compact landscape:**
+   - the rail's provider region gives way to the same Play
+     (`<app-workspace-touch-play placement="beside">`, projected into the rail
+     through a new `<ng-content />`, under `@defer`);
+   - the categories panel becomes the drawer (rules copied from the context
+     sidebar's phone block under `[data-touch-chrome='landscape']`);
+     `workspace-live-categories-popover.service.ts` opens the drawer in
+     touch landscape;
+   - live: list 320px beside the player, video at least 60% of the height;
+   - **addition 3:** check the dial and drawer stay clear of the player and
+     snack bars in landscape.
+3. After batch 8: `adb install -r` the debug APK on the phone
+   (65180DLCR001G4), then stop.
+
+### To resume
+- AVD `LisBora_API37` (`-port 5554`), mocks on 18080 (tv-shell M3U), 3211
+  (`marketing`/`marketing`), 3210 (Stalker MAC `00:1A:79:00:00:07`), with
+  `adb reverse` for each. The capture scripts are in
+  `C:\Users\mrttm\iptvnator-ux-review\2026-11-17\scripts\`; batch 6 captures
+  are in `…\after\b6-*`.
+- `tv-touch.mjs` needs `run-dev.sh` (mock on 43331) and
+  `server.mjs --www dist/apps/web --port 43332 --touch`.
