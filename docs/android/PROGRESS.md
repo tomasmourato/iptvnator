@@ -722,7 +722,7 @@ harness limit above. The other suites still have it.
    like a timing problem in the test. Make the step wait until the settings
    window has focus before pressing Back.
 
-## UX batches 6–8: touch chrome (2026-11-18), stopped after batch 7
+## UX batches 6–8: touch chrome (2026-11-18), done
 
 Plan: batches 6–8 of [UX-REVIEW.md](UX-REVIEW.md), fork-only for now, gated on
 the shell capability descriptor's touch mode (`WorkspaceTouchLayoutService`:
@@ -773,20 +773,44 @@ UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`)
   was the non-dismissible "Movies / All items". `touch-chrome.e2e.ts`
   covers the dismissible chip.
 
+### Done: batch 8 (`c670b6b84`)
+- Touch landscape (864×359 on the AVD): the rail projects Play
+  (`app-workspace-touch-rail-play`, deferred, `placement="beside"`) in place
+  of the provider region through a new `<ng-content />` and a `touchPlay`
+  input. The context panel is the drawer phones use, from the header toggle:
+  `workspace-touch-landscape.scss`, global in the deferred chunk, repeats the
+  context sidebar's phone block under `[data-touch-chrome='landscape']`. A
+  change of touch chrome closes an open drawer.
+- `workspace-live-categories-popover.service.ts` opens the drawer instead of
+  the popover in touch landscape.
+- Live (shared mixin, so Xtream, Stalker and M3U): on
+  `(pointer: coarse) and (max-height: 500px) and (orientation: landscape)
+  and (min-width: 641px)` the list keeps 320px and an open guide at most 40%
+  of the column. On the AVD the playing video went 81×123 → 484×182px.
+- Not done: the review's "guide collapsed by default". The guide's state is
+  persisted per user and shared with the other layouts; its chevron gives
+  the video the full column.
+- **Addition 3:** the dial (z 946) and the drawer (z 951) are the hit-test
+  target over the playing video on the AVD and in `touch-chrome.e2e.ts`.
+  Landscape has no bottom bar, so snack bars keep the screen edge (no lift).
+- Launch initial bytes 1,200,828 (unchanged from batch 7).
+- Captures: `…\after\b8-before-*` (before), `…\after\b8-*`.
+
+### Batch 7 device check with the Xtream mock
+With the mock on 3211 up, the expanded portrait search showed the
+dismissible chip "Movies / Action & …" (154px, inside a 395px field) above
+the scope row. Tapping its × went from `/vod/5201?q=Bla` to `/vod?q=Bla`:
+the term and the open field stayed, and the chip became the fixed
+"Movies / All items". Captures: `…\after\b7-chip-dismissible.png`,
+`b7-chip-dismissed.png`. Note: `adb shell input keyevent 111` (Escape)
+reaches the page and collapses the field, as designed; use Back (4) to hide
+the keyboard.
+
 ### Next
-1. **Batch 8, compact landscape:**
-   - the rail's provider region gives way to the same Play
-     (`<app-workspace-touch-play placement="beside">`, projected into the rail
-     through a new `<ng-content />`, under `@defer`);
-   - the categories panel becomes the drawer (rules copied from the context
-     sidebar's phone block under `[data-touch-chrome='landscape']`);
-     `workspace-live-categories-popover.service.ts` opens the drawer in
-     touch landscape;
-   - live: list 320px beside the player, video at least 60% of the height;
-   - **addition 3:** check the dial and drawer stay clear of the player and
-     snack bars in landscape.
-2. After batch 8: `adb install -r` the debug APK on the phone
-   (65180DLCR001G4), then stop.
+1. `adb install -r` the debug APK on the phone (65180DLCR001G4); it was not
+   connected to adb during batch 8.
+2. The follow-ups recorded above (initial-bytes ratchet, slow deferred M3U
+   list, emulator suites with two adb devices, `android-touch` step 7).
 
 ### To resume
 - AVD `LisBora_API37` (`-port 5554`), mocks on 18080 (tv-shell M3U), 3211
@@ -794,5 +818,8 @@ UX batches 1–5 and the review were pushed to `origin` (`c7b660eb9..35829b201`)
   `adb reverse` for each. The capture scripts are in
   `C:\Users\mrttm\iptvnator-ux-review\2026-11-17\scripts\`; batch 6 captures
   are in `…\after\b6-*`, batch 7's in `…\after\b7-*`.
+- The Xtream mock starts with `node node_modules/tsx/dist/cli.mjs --tsconfig
+  tsconfig.base.json apps/xtream-mock-server/src/main.ts` (without
+  `--tsconfig` it can't resolve `@iptvnator/*`).
 - `tv-touch.mjs` needs `run-dev.sh` (mock on 43331) and
   `server.mjs --www dist/apps/web --port 43332 --touch`.

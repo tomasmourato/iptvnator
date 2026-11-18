@@ -379,5 +379,7 @@ phone AVD are in `<root>/after/` (`b1-` … `b5f-`).
   which splits by module).
 - **Not run:** Firefox and WebKit E2E (browsers not installed here); the TV AVD
   (the shell changes only run in touch mode).
-- **Next:** batches 6–8 (bottom bar, search placement, compact landscape) behind
-  the shell touch capability, after the upstream issue.
+- **Batches 6–8** (bottom bar `307290cfd`, search placement `04400e524`,
+  compact landscape `c670b6b84`) are done, fork-only behind the shell touch
+  capability; batch 8's live-layout rule is a plain media query. Details in
+  PROGRESS.md.
