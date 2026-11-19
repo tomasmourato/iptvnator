@@ -15,20 +15,20 @@ import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener;
 import androidx.media3.exoplayer.source.UnrecognizedInputFormatException;
 import androidx.media3.session.MediaSession;
 
 import org.tvshell.iptvnator.R;
+import org.tvshell.iptvnator.player.DecoderFallback;
 import org.tvshell.iptvnator.player.NativePlayerFactory;
 
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
 @OptIn(markerClass = UnstableApi.class)
-public final class NativePlayerActivity extends Activity {
+public final class NativePlayerActivity extends Activity implements DecoderFallback.Host {
     private ExoPlayer player;
     private MediaSession mediaSession;
     private NativePlayerControls controls;
@@ -37,6 +37,8 @@ public final class NativePlayerActivity extends Activity {
     private NativePlaybackState state;
     private String requestId;
     private NativeResumeCheckpoint checkpoint;
+    private DecoderFallback decoders;
+    private boolean resumed;
 
     @Override
     protected void onCreate(Bundle savedState) {
@@ -44,6 +46,7 @@ public final class NativePlayerActivity extends Activity {
         requestId = getIntent().getStringExtra("requestId");
         checkpoint = new NativeResumeCheckpoint(requestId);
         state = new NativePlaybackState(getIntent(), savedState);
+        decoders = new DecoderFallback(this, this, savedState == null ? null : savedState.getString("decoderStage"));
         String url = getIntent().getStringExtra("url");
         stream = url == null ? null : HttpUrl.parse(url);
         if (stream == null) {
@@ -70,15 +73,19 @@ public final class NativePlayerActivity extends Activity {
                 httpClient = NativePlaybackRequest.client(stream, getIntent().getBundleExtra("headers"));
             }
         }
-        DefaultRenderersFactory renderers = new DefaultRenderersFactory(this)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON);
-        player = NativePlayerFactory.build(this, httpClient, renderers);
+        startPlayer();
+    }
+
+    /** A player on the current decoder stage, prepared on the stream. */
+    private void startPlayer() {
+        player = NativePlayerFactory.build(this, httpClient, decoders.renderers());
         player.setVolume(state.volume);
         if (state.trackPreferences == null) state.trackPreferences = NativePlayerFactory.initialTracks(player);
         player.setTrackSelectionParameters(state.trackPreferences);
         PlaybackStatsListener stats = new PlaybackStatsListener(false, null);
         player.addAnalyticsListener(stats);
         state.attach(player, stats);
+        decoders.attach(player);
         player.addListener(new Player.Listener() {
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
@@ -89,8 +96,9 @@ public final class NativePlayerActivity extends Activity {
 
             @Override
             public void onTracksChanged(Tracks tracks) {
-                if (hasUnsupportedTrack(tracks, C.TRACK_TYPE_VIDEO)
-                    || hasUnsupportedTrack(tracks, C.TRACK_TYPE_AUDIO)) {
+                boolean video = hasUnsupportedTrack(tracks, C.TRACK_TYPE_VIDEO);
+                if (video && decoders.onUnsupportedVideo(tracks)) return;
+                if (video || hasUnsupportedTrack(tracks, C.TRACK_TYPE_AUDIO)) {
                     fail();
                     return;
                 }
@@ -116,6 +124,7 @@ public final class NativePlayerActivity extends Activity {
                     prepareStream();
                     return;
                 }
+                if (decoders.onError(error)) return;
                 state.failed = true;
                 showError();
             }
@@ -127,11 +136,31 @@ public final class NativePlayerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (player != null && !state.failed && !isFinishing()) {
-            mediaSession = NativeMediaSession.open(this, player, state.live, this::handleExitKey);
-            player.setPlayWhenReady(state.autoplay);
-        }
+        resumed = true;
+        resumePlayer();
         checkpoint.startCaching(() -> player == null || isFinishing() ? null : state.result());
+    }
+
+    private void resumePlayer() {
+        if (player == null || state.failed || isFinishing()) return;
+        mediaSession = NativeMediaSession.open(this, player, state.live, this::handleExitKey);
+        player.setPlayWhenReady(state.autoplay);
+    }
+
+    /** The decoder stage changed: the same stream on a new player; VOD keeps its position and tracks. */
+    @Override
+    public void restartOnNewStage() {
+        if (player == null || isFinishing()) return;
+        state.autoplay = player.getPlayWhenReady();
+        releaseMediaSession();
+        releasePlayer();
+        startPlayer();
+        if (resumed) resumePlayer();
+    }
+
+    @Override
+    public void decodersExhausted() {
+        if (player != null && !state.failed) fail();
     }
 
     @Override
@@ -183,6 +212,7 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     protected void onPause() {
+        resumed = false;
         checkpoint.stopCaching();
         releaseMediaSession();
         if (player != null) {
@@ -195,20 +225,25 @@ public final class NativePlayerActivity extends Activity {
 
     @Override
     protected void onStop() {
-        if (player != null) {
-            state.detach();
-            controls.attach(null);
-            player.release();
-            player = null;
-        }
+        releasePlayer();
         super.onStop();
         // Other ways of leaving the player may stop it without a user leave hint.
         if (!isFinishing() && !isChangingConfigurations()) finish();
     }
 
+    private void releasePlayer() {
+        if (player == null) return;
+        state.detach();
+        decoders.detach();
+        controls.attach(null);
+        player.release();
+        player = null;
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         state.save(outState);
+        outState.putString("decoderStage", decoders.stage());
         super.onSaveInstanceState(outState);
     }
 

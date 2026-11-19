@@ -195,6 +195,17 @@ documents eligible streams, the bridge's header policy and device validation.
 The pilot is unavailable when parental controls are enabled and for provider
 links that require fresh resolution before another engine can open them.
 
+Media3 tries video decoders in stages (`DecoderFallback` in the shell's
+`player` package, rules in the backend's `DecoderChain` and `VideoOutputStall`).
+It starts on the device's decoders that are not software-only. It moves on when
+the decoder queues at least 30 input buffers in 6 seconds of wanted playback
+without rendering a new frame, after a video decoder error, or when the stage
+has no decoder for the track. The next stage is the build's
+`VideoDecoderProvider` (registered through `ServiceLoader`) or, without one,
+the platform software decoders; then playback fails as before. A stage change
+rebuilds the player on the same stream: the activity keeps the VOD position,
+tracks, volume and played time, and a recreated activity keeps the stage.
+
 ## Two-State Detail Layout (Browse ↔ Watch)
 
 Portal VOD/series detail pages are hosted by the shared

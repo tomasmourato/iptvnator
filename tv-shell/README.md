@@ -163,6 +163,17 @@ and video codec support varies by device. The built-in player uses FFmpeg to
 decode AC-3 when the device cannot handle it. DASH, DRM, Smooth Streaming and
 temporary Stalker links stay in the web player. When parental controls are
 enabled, playback stays in the web player so it can enforce the lock.
+
+Some devices' video decoders accept a stream and show nothing, without any
+error; open-GOP H.264 channels can do this. The built-in player watches the
+decoder: when it takes input for 6 seconds without showing a new frame, or
+fails with a decoder error, the player opens the stream again on the next
+decoder. That is the platform's software decoder, or the decoder a build adds
+through `VideoDecoderProvider` (for example FFmpeg). VOD keeps its position and
+selected tracks; live restarts. When the last decoder also stalls, playback
+fails and Back offers an external player as usual. The `TvShell` log tag has
+one line per decoder change, with the reason, the decoder name and its frame
+counters, never the stream address.
 The native fullscreen screen supports play/pause, VOD
 seeking, audio tracks and subtitles. Its mute button restores the last
 audible app volume when unmuting. The Show subtitles setting picks the
@@ -442,6 +453,10 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-protocol-discovery.mjs emu
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-background-media.mjs emulator-5554
 # native playback and web handoff in the packaged debug APK (requires ffmpeg)
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-playback.mjs emulator-5554
+# decoder fallback (requires ffmpeg, and an emulator with a hardware and a software
+# H.264 decoder, such as a phone AVD): a debug-only hook, files/debug-force-stall,
+# makes the first decoder (content "all": every decoder) drop every frame
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-fallback.mjs emulator-5554
 
 # oversized Xtream catalogues: starts its own mock provider with --large-catalog
 # (~90 MiB synthetic get_vod_streams and get_series) and clears the app's data
