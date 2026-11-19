@@ -20,7 +20,9 @@ public interface VideoDecoderProvider {
 
     /**
      * Renderers whose extension video renderer is the provider's decoder. The fallback stage sets
-     * {@link DefaultRenderersFactory#EXTENSION_RENDERER_MODE_PREFER} on it.
+     * {@link DefaultRenderersFactory#EXTENSION_RENDERER_MODE_PREFER} on it. The earlier stages use
+     * a fresh instance with {@link DefaultRenderersFactory#EXTENSION_RENDERER_MODE_ON} and their
+     * own codec selector, so it must build the platform renderers from the selector it is given.
      */
     DefaultRenderersFactory renderersFactory(Context context);
 }

@@ -20,7 +20,9 @@ import java.util.List;
  * The renderers of each decoder stage. Hardware: the device's video decoders that are not
  * software-only, with Media3's extension renderers after them (the AC-3 audio fallback).
  * Software: only the platform's software video decoders. FFmpeg: the provider's renderers, its
- * video decoder first. Audio decoders are never filtered.
+ * video decoder first. When a provider exists, the hardware and software stages use its renderers
+ * too, with its extensions after the platform's (so its audio decoders replace Media3's AC-3
+ * extension). Audio decoders are never filtered.
  */
 @OptIn(markerClass = UnstableApi.class)
 final class DecoderStages {
@@ -35,8 +37,10 @@ final class DecoderStages {
             return provider.renderersFactory(context)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER);
         }
-        DefaultRenderersFactory factory = forceStall
-            ? new DebugForcedStall.RenderersFactory(context) : new DefaultRenderersFactory(context);
+        // With a provider, its renderers back the earlier stages too: its extensions (an FFmpeg
+        // audio decoder, say) then come after the platform decoders, as Media3's own would.
+        DefaultRenderersFactory factory = forceStall ? new DebugForcedStall.RenderersFactory(context)
+            : provider != null ? provider.renderersFactory(context) : new DefaultRenderersFactory(context);
         return factory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setMediaCodecSelector(stage == Stage.SOFTWARE ? SOFTWARE : HARDWARE);
     }
