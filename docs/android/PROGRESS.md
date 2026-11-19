@@ -991,3 +991,52 @@ waits for idle alone, so it stays a skeleton.
   tar -xf - < phone-app-data.tar`.
 - Review folders: `C:\Users\mrttm\iptvnator-ux-review\2026-11-17\` (before,
   after, scripts) and `…\2026-11-18\rebase\`.
+
+## Gear order, M3U list without idle time, android-touch (2026-11-19)
+
+The rest of the rebase session. Commits, tagged [U] (for an upstream PR) or
+[F] (fork only):
+- `85b0bee8d` [F] `fix(ui)`: in portrait touch chrome, the Settings gear is
+  the header's last control on every screen, after Add, ⚡, downloads and
+  "More actions". The header spec and `touch-chrome.e2e.ts` (dashboard, and
+  Live at 320px with "More actions") fail with the previous template.
+- `b6399cf25` [F] `fix(ui)`: found by `touch-chrome.e2e.ts`. Since the
+  rebase, upstream's sidebar cap (UI-67, `max-width: clamp(250px, 36vw,
+  600px)`) beat the touch-landscape `width: 320px !important`: the live list
+  was 304px at 844px wide and 311px on the phone AVD. The rule now also
+  sets `max-width: none`.
+- `27f4f2bae` [U] `fix(m3u)`: the channel sidebar is `@defer (on idle; when
+  channelListDue())`, with `channelListDue` true after 1 s
+  (`deferred-render-fallback.ts`). The plan's `on timer(1s)` added Angular's
+  timer trigger to the initial bundle (PWA `renderer.initialBytes`
+  1,179,275 → 1,181,117); the `when` version keeps 1,179,275.
+  `m3u-deferred-list.e2e.ts` turns `requestIdleCallback` into a no-op and
+  fails on the previous template. Note `.changes/m3u-channel-list-slow-devices.md`.
+- `f065a1249` [F] `test(tv-shell)`: `android-touch.mjs` step 6b taps the
+  header search icon (batch 7) instead of looking for an input on Settings.
+  The step had been broken since batch 7, hidden behind the step 2 failure.
+
+The planned step 7 fix (wait for `SettingsActivity` before Back) was not
+needed: step 7 passed in both runs.
+
+### Results
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass on each code commit (one `test:frontend` run timed out two settings specs while the AVD booted; they pass alone and on a full rerun) |
+| release notes | valid (110) |
+| `touch-chrome.e2e.ts` | 8/8 (the landscape case failed before `b6399cf25`) |
+| `m3u-deferred-list` / `mobile-layout` / `inline-player-layout` E2E | 12 passed |
+| `android-touch.mjs` phone AVD (FFmpeg off) | 7/7 PASS twice; step 2 loads the synthetic playlist now |
+| Phone suites: bridge / protocol discovery / file input / background media | 1 / 1 / 3 / 4 PASS |
+| `tv-remote.mjs` / `tv-longlist.mjs` / `tv-touch.mjs` (Chromium) | 134 / 19 / 25 checks passed |
+| `node --test tv-shell/tests` | 24 passed |
+
+The phone app data was backed up to `…\2026-11-19\phone-app-data.tar`
+before `android-touch` (it runs `pm clear`) and restored afterwards (100
+entries, as backed up).
+
+### Next
+F1 onward, as planned: the flavor, U2 (`MainActivity` at 796 lines), U2b,
+F3, U3–U5, D-final. Still open: `android-native-playback.mjs` stops at
+line 671 under `TVSHELL_NO_FFMPEG`; the initial-bytes ratchet (see the
+live-lists entry).
