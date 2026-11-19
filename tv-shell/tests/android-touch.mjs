@@ -183,10 +183,12 @@ try {
 
     // 6b. The soft keyboard resizes the page: the focused field stays visible above it.
     await page.goto(new URL('/workspace/settings', page.url()).href);
-    const search = page.locator('input').first();
-    await until(() => search.isVisible(), 'settings search field missing');
+    // On a phone in portrait the header search is an icon that expands the field and focuses it.
+    const search = page.locator('#workspace-shell-search-input');
+    const searchIcon = page.locator('[data-test-id="header-touch-search"]');
+    await until(async () => (await search.isVisible()) || (await searchIcon.isVisible()), 'settings search field missing');
     const heightBefore = await page.evaluate(() => window.innerHeight);
-    await tap(page, search);
+    await tap(page, (await search.isVisible()) ? search : searchIcon);
     await until(() => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')), 'the soft keyboard did not open');
     await until(async () => (await page.evaluate(() => window.innerHeight)) < heightBefore, 'the page did not resize for the keyboard');
     const ime = insetSource('ime');
