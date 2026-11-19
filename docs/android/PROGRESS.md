@@ -1142,3 +1142,99 @@ before `android-touch` and restored afterwards (357 entries).
 ### Next
 F3 (NextLib in StaticTV as the `VideoDecoderProvider`), then the Pixel 10
 on the open-GOP channel; U3–U5; D-final. Not installed on the phone yet.
+
+## TV parity script and an initial-focus race (2026-11-19)
+
+`8e627de85` [U] `test(tv-shell)`: the 8-screen TV parity check is now
+`tv-shell/tests/android-tv-screens.mjs` (it had been a scratch script and was
+lost). It captures home, the add-playlist dialog, the keyboard opened by OK on
+the URL field, the channel list, three D-pad Downs, playback and fullscreen
+(paused on a fixed frame) and settings, with a fingerprint per screen and the
+served `index.html`; `--compare` diffs two captures and exits 1 on any
+difference.
+
+Run on the TV AVD (API 34) with one PWA bundle and FFmpeg off. The baseline is
+today's `upstream/master` `9d70d1d76`, whose `tv-shell/` is unchanged since our
+base, plus only U1's Gradle switch (upstream's FFmpeg step can't run on
+Windows). Five captures per build:
+
+| Build | Initial D-pad ring, home / settings |
+|---|---|
+| upstream baseline | Dashboard / General in 5 of 5 |
+| HEAD `4ace79b1f` (after the U2 splits) | differs in 3 of 5: the playlist switcher on home twice, Dashboard on settings once |
+| `27230a3c4` (before the splits) | differs in 3 of 5, the same way |
+
+The other six screens, the served `index.html`, and the runs where the ring
+landed as upstream's are identical (0.000% of pixels). So the splits change
+nothing; the difference is older. After a page load, `installRemoteControl`
+polls every 250 ms and `focusFirst` takes the best element rendered at that
+moment, so it races Angular's first render. Upstream has the race too but wins
+it the same way every time; a fork Java change seems to shift page-load timing.
+Nothing breaks: the first ring starts one control away. The previous parity
+checks ran one or two captures, which can miss it. Captures:
+`C:\Users\mrttm\iptvnator-ux-review\2026-11-19\tv-parity\`.
+
+### Follow-up (before any upstream PR of the suspects)
+Bisect the fork's Java commits between `upstream/master` and `27230a3c4` with
+`android-tv-screens.mjs`, five captures per build, before proposing
+`1529a46e4` (the per-launch /api secret: a document-start script, and `/api`
+calls that need its header) or `dfaacaa98` (the capability descriptor)
+upstream. Those two are the likely causes. A build counts as clean when all
+five runs land the ring as upstream's.
+
+## F3: NextLib in StaticTV (2026-11-19)
+
+Commits, tagged [U] (for an upstream PR) or [F] (fork only):
+- `e3cc67c78` [U] `feat(tv-shell)`: with a `VideoDecoderProvider`, the hardware and
+  software stages use the provider's renderers too (extension mode ON, the
+  stage's codec selector), so its audio extensions follow the platform
+  decoders. Without a provider (upstream) nothing changes. Belongs with U2.
+- `d0b185adb` [F] `feat(tv-shell)`: `NextLibDecoderProvider` (`id` "ffmpeg",
+  `NextRenderersFactory`) in `src/statictv`, registered in
+  `META-INF/services`; `statictvImplementation
+  io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.19.0` in `fork.gradle`,
+  plus the duplicate OSGi manifest exclude seen in the spike. NextLib's
+  factory builds the platform renderers from the selector it is given, then
+  adds its FFmpeg renderer after them (ON) or before the last (PREFER).
+  - StaticTV's chain: hardware → ffmpeg. NextLib's FFmpeg audio (AC-3,
+    E-AC-3, DTS, TrueHD) replaces upstream's AC-3 extension, which stays in
+    `tvshell` only.
+  - Notices: `assets/tvshell/NOTICES-StaticTV.txt` (NextLib GPL-3.0; FFmpeg
+    9.0.1 as NextLib builds it, which reports "LGPL version 3 or later";
+    libass and the other native dependencies, whose licence files NextLib
+    ships under `assets/native-dependencies/`; the source links) and
+    `GPL-3.0.txt` (the gnu.org text, SHA-256 `3972dc97…`). The StaticTV APK
+    as a whole is GPL-3.0; the repository and `tvshell` are unchanged.
+  - `statictv-flavor.test.mjs`: the provider is registered, the notices name
+    the shipped NextLib version, NextLib's Media3 version matches
+    `media3Version`, and nothing NextLib reaches `src/main` or
+    `build.gradle`.
+  - `android-native-fallback.mjs` with `TVSHELL_PACKAGE=io.github.tomasmourato.tv`
+    expects hardware → ffmpeg and skips the remembered-stall and all-stall
+    steps (the debug hook never stalls the provider).
+
+No `.changes/` note: StaticTV is fork-only, and the [U] commit changes nothing
+without a provider.
+
+### Results
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass (`apps/` and `libs/` untouched) |
+| `:backend:check` (JDK 17) / `node --test tv-shell/tests` | 100 / 30 passed |
+| Phone AVD, StaticTV x86_64 | `android-native-fallback` PASS: hardware stalled → "ffmpeg rendering, decoder=ffmpegLavc63.1.101-h264 via ffmpeg, … dropped=0"; the next playback "starting on ffmpeg (remembered)"; no stream address in the log |
+| Phone AVD, `tvshell` | `android-native-fallback` PASS, unchanged (hardware → software → failed) |
+| Phone AVD, StaticTV touch layout | "Try built-in player" shows at the top of the video area once Advanced → "Enable built-in player (experimental)" is on, for a playing clip and on the error panel (where it overlaps the end of the warning badge: for U3/U4) |
+| StaticTV APK contents | `lib/<abi>` holds only NextLib's 7 libraries for the requested ABI; no Media3 FFmpeg extension; notices, GPL text and NextLib's licence files present |
+| Sizes (debug) | `tvshell` 22.7 MiB; StaticTV arm64-v8a 35.1 MiB, x86_64 39.1 MiB |
+
+Two shells on one device take different loopback ports: with IPTVnator
+running, StaticTV's backend falls back from 43330, so a test that runs `adb
+reverse tcp:43331` must stop both apps first.
+
+**Pixel 10:** the StaticTV arm64 debug APK is installed next to IPTVnator,
+whose install and data weren't touched. The open-GOP check on the user's
+provider is pending; the `TvShell` lines are captured to a file, tag-filtered.
+
+### Next
+The Pixel 10 open-GOP result; U3–U5; D-final; the initial-focus bisect above
+before upstream PRs of `1529a46e4` or `dfaacaa98`.
