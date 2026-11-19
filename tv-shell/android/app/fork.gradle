@@ -2,7 +2,8 @@
 // upstream rebase touches nothing else there.
 //   tvshell:  upstream's identity (org.tvshell.iptvnator), unchanged.
 //   statictv: StaticTV (io.github.tomasmourato.tv), based on IPTVnator. Its name, icon, banner,
-//             startup mark and launcher shortcut are in src/statictv (see its README.md).
+//             startup mark, launcher shortcut and FFmpeg video decoder (NextLib, GPL-3.0) are
+//             in src/statictv (see its README.md).
 // -Ptvshell.abis=<comma-separated ABIs> picks StaticTV's native ABIs: arm64-v8a by default (the
 // phone); pass x86_64 for the emulators.
 def statictvAbis = (findProperty('tvshell.abis') ?: 'arm64-v8a').toString()
@@ -39,6 +40,14 @@ if (media3FfmpegDirs) {
         }
     }
 }
+// StaticTV's last video decoder: NextLib's FFmpeg (GPL-3.0; src/statictv/assets/tvshell has the
+// notices). Its version pairs with Media3 1.11.1 in build.gradle; bump both together.
+dependencies {
+    statictvImplementation 'io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.19.0'
+}
+// NextLib and a Media3 dependency both ship this OSGi manifest.
+android.packaging.resources.excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF']
+
 def preBuildTask = tasks.named('preBuild').get()
 if (preBuildTask.dependsOn.contains('buildMedia3Ffmpeg')) {
     preBuildTask.setDependsOn(preBuildTask.dependsOn - 'buildMedia3Ffmpeg')

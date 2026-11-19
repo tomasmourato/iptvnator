@@ -58,6 +58,22 @@ test('the launcher shortcut targets the StaticTV application ID', () => {
     }
 });
 
+test('StaticTV registers NextLib as the decoder provider, with its GPL notices', () => {
+    const service = read(new URL('src/statictv/resources/META-INF/services/org.tvshell.iptvnator.player.VideoDecoderProvider', app)).trim();
+    assert.equal(service, 'org.tvshell.iptvnator.player.NextLibDecoderProvider');
+    assert.ok(existsSync(new URL(`src/statictv/java/${service.replaceAll('.', '/')}.java`, app)));
+    assert.match(read(new URL('src/statictv/assets/tvshell/GPL-3.0.txt', app)), /GNU GENERAL PUBLIC LICENSE\s+Version 3, 29 June 2007/);
+    const notices = read(new URL('src/statictv/assets/tvshell/NOTICES-StaticTV.txt', app));
+    const nextlib = read(new URL('fork.gradle', app)).match(/statictvImplementation 'io\.github\.anilbeesetti:nextlib-media3ext:([\d.]+)-([\d.]+)'/);
+    assert.ok(nextlib, 'NextLib is a statictv-only dependency');
+    // NextLib's version names the Media3 release it is built against.
+    assert.equal(nextlib[1], read(new URL('build.gradle', app)).match(/def media3Version = '([\d.]+)'/)?.[1]);
+    assert.ok(notices.includes(`${nextlib[1]}-${nextlib[2]}`), 'the notices name the shipped NextLib version');
+    // The provider and NextLib stay out of the upstream source set.
+    assert.doesNotMatch(read(new URL('build.gradle', app)), /nextlib/i);
+    assert.ok(!existsSync(new URL('src/main/resources/META-INF/services/org.tvshell.iptvnator.player.VideoDecoderProvider', app)));
+});
+
 test('app/build.gradle applies fork.gradle', () => {
     assert.match(read(new URL('build.gradle', app)), /^apply from: 'fork\.gradle'/m);
 });

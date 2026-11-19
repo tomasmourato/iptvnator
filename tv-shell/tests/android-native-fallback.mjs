@@ -3,7 +3,10 @@
  * AVDs have c2.goldfish.h264 and c2.android.avc):
  * ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-native-fallback.mjs emulator-5554
  * TVSHELL_PACKAGE picks the installed app (default org.tvshell.iptvnator; the StaticTV flavor is
- * io.github.tomasmourato.tv). The checks use the debug-only files/debug-force-stall hook.
+ * io.github.tomasmourato.tv). The checks use the debug-only files/debug-force-stall hook. StaticTV
+ * has an FFmpeg decoder provider, so it falls back to ffmpeg instead of the platform's software
+ * decoder; the hook never stalls that decoder, so the remembered-stall and all-stall steps are
+ * skipped there.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -18,6 +21,9 @@ assert.ok(serial?.startsWith('emulator-') && process.env.ANDROID_HOME,
     'Set ANDROID_HOME and pass an emulator serial.');
 const app = process.env.TVSHELL_PACKAGE || 'org.tvshell.iptvnator';
 const main = `${app}/org.tvshell.iptvnator.ui.MainActivity`;
+const withProvider = app === 'io.github.tomasmourato.tv';
+const fallback = withProvider ? 'ffmpeg' : 'software';
+const fallbackDecoder = withProvider ? String.raw`\S+ via ffmpeg` : String.raw`c2\.android\.avc\.decoder`;
 const adb = (...args) => execFileSync(join(process.env.ANDROID_HOME, 'platform-tools/adb'),
     ['-s', serial, ...args], { encoding: 'utf8', timeout: 20000 });
 const dumpLayout = () => adb('exec-out', 'uiautomator', 'dump', '--compressed', '/dev/tty');
@@ -92,77 +98,85 @@ try {
     const memory = () => adb('shell', 'run-as', app, 'cat', 'shared_prefs/decoder_memory.xml');
     adb('shell', 'run-as', app, 'rm', '-f', 'shared_prefs/decoder_memory.xml');
 
-    // 1. The hardware decoder takes input and shows nothing: the software decoder takes over.
+    // 1. The hardware decoder takes input and shows nothing: the next decoder takes over.
     forceStall('first');
     await play();
     const requestsBefore = manifestRequests.count;
     await expect.poll(decoderLog, { timeout: 30000 }).toEqual(expect.arrayContaining([
-        expect.stringMatching(/native decoder: hardware -> software \(stall\), decoder=\S+, queued=\d+, rendered=0/),
-        expect.stringMatching(/native decoder: software rendering, decoder=c2\.android\.avc\.decoder/),
+        expect.stringMatching(new RegExp(String.raw`native decoder: hardware -> ${fallback} \(stall\), decoder=\S+, queued=\d+, rendered=0`)),
+        expect.stringMatching(new RegExp(`native decoder: ${fallback} rendering, decoder=${fallbackDecoder}`)),
     ]));
-    assert.ok(manifestRequests.count > requestsBefore, 'The software stage reloads the stream.');
+    assert.ok(manifestRequests.count > requestsBefore, `The ${fallback} stage reloads the stream.`);
     await back();
     await page.waitForFunction(() => window.__nativeResult !== undefined);
     const played = await page.evaluate(() => window.__nativeResult);
-    assert.equal(played.failed, false, 'The software stage played the stream.');
+    assert.equal(played.failed, false, `The ${fallback} stage played the stream.`);
     assert.equal(played.started, true);
 
     // 2. The next playback of that stream starts on the decoder that worked; only a hash is kept.
-    await expect.poll(memory).toMatch(/name="[0-9a-f]{64}">software:\d+</);
+    await expect.poll(memory).toMatch(new RegExp(String.raw`name="[0-9a-f]{64}">${fallback}:\d+<`));
     assert.ok(!memory().includes(`:${port}`) && !memory().includes('fallback'), 'The memory keeps a stream address.');
     adb('shell', 'run-as', app, 'rm', '-f', 'files/debug-force-stall');
     await play();
     await expect.poll(decoderLog, { timeout: 20000 }).toEqual([
-        expect.stringMatching(/native decoder: starting on software \(remembered\)/),
-        expect.stringMatching(/native decoder: software rendering, decoder=c2\.android\.avc\.decoder/),
+        expect.stringMatching(new RegExp(String.raw`native decoder: starting on ${fallback} \(remembered\)`)),
+        expect.stringMatching(new RegExp(`native decoder: ${fallback} rendering, decoder=${fallbackDecoder}`)),
     ]);
+    let log = appLog();
     await back();
+    if (withProvider) {
+        assert.ok(!log.includes(`:${port}`) && !log.includes('fallback.m3u8'), 'The app log contains the stream URL.');
+        await setNativePlayback(false);
+        console.log('PASS a stalled hardware decoder falls back to the ffmpeg provider, which the next playback '
+            + 'starts on; no stream URL in the log');
+        console.log('SKIP the remembered-stall and all-stall steps: the debug hook never stalls the provider');
+    } else {
+        // 3. The remembered decoder stalls: the entry goes and the chain starts over on hardware.
+        forceStall('first'); // the first stage is now the remembered software decoder
+        await play();
+        await expect.poll(decoderLog, { timeout: 30000 }).toEqual(expect.arrayContaining([
+            expect.stringMatching(/native decoder: software -> hardware \(stall, remembered stage dropped\)/),
+            expect.stringMatching(/native decoder: hardware rendering, decoder=c2\.goldfish\.h264\.decoder/),
+        ]));
+        await back();
+        await expect.poll(memory).not.toMatch(/[0-9a-f]{64}/);
 
-    // 3. The remembered decoder stalls: the entry goes and the chain starts over on hardware.
-    forceStall('first'); // the first stage is now the remembered software decoder
-    await play();
-    await expect.poll(decoderLog, { timeout: 30000 }).toEqual(expect.arrayContaining([
-        expect.stringMatching(/native decoder: software -> hardware \(stall, remembered stage dropped\)/),
-        expect.stringMatching(/native decoder: hardware rendering, decoder=c2\.goldfish\.h264\.decoder/),
-    ]));
-    await back();
-    await expect.poll(memory).not.toMatch(/[0-9a-f]{64}/);
+        // 4. Every decoder stalls: failed, and the page offers an external player.
+        forceStall('all');
+        adb('logcat', '-c');
+        await page.goto(new URL('/', page.url()).href);
+        await page.getByRole('button', { name: 'Add playlist' }).click();
+        const dialog = page.getByRole('dialog');
+        await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
+        await dialog.getByLabel('Insert m3u(8) playlist as text').fill(
+            ['#EXTM3U', '#EXTINF:-1 group-title="Live",Synthetic Fallback', stream].join('\n'));
+        await Promise.all([
+            page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
+            dialog.getByRole('button', { name: 'Add playlist', exact: true }).click(),
+        ]);
+        const entry = page.locator('[data-test-id="channel-item"]').filter({ hasText: 'Synthetic Fallback' });
+        await expect(entry).toBeVisible({ timeout: 60000 });
+        await entry.click();
+        const action = page.locator('app-web-player-view').getByRole('button', { name: 'Try built-in player' });
+        await expect(action).toBeVisible({ timeout: 30000 });
+        await action.click();
+        await waitNative();
+        await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream'),
+            { timeout: 40000 }).toBe(true);
+        const steps = decoderLog();
+        assert.ok(steps.some((line) => line.includes('hardware -> software (stall)')), steps.join('\n'));
+        assert.ok(steps.some((line) => line.includes('software -> failed (stall)')), steps.join('\n'));
+        log = appLog();
+        await back();
+        await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
 
-    // 4. Every decoder stalls: failed, and the page offers an external player.
-    forceStall('all');
-    adb('logcat', '-c');
-    await page.goto(new URL('/', page.url()).href);
-    await page.getByRole('button', { name: 'Add playlist' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
-    await dialog.getByLabel('Insert m3u(8) playlist as text').fill(
-        ['#EXTM3U', '#EXTINF:-1 group-title="Live",Synthetic Fallback', stream].join('\n'));
-    await Promise.all([
-        page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Add playlist', exact: true }).click(),
-    ]);
-    const entry = page.locator('[data-test-id="channel-item"]').filter({ hasText: 'Synthetic Fallback' });
-    await expect(entry).toBeVisible({ timeout: 60000 });
-    await entry.click();
-    const action = page.locator('app-web-player-view').getByRole('button', { name: 'Try built-in player' });
-    await expect(action).toBeVisible({ timeout: 30000 });
-    await action.click();
-    await waitNative();
-    await expect.poll(() => dumpLayout().includes('The built-in player could not play this stream'),
-        { timeout: 40000 }).toBe(true);
-    const steps = decoderLog();
-    assert.ok(steps.some((line) => line.includes('hardware -> software (stall)')), steps.join('\n'));
-    assert.ok(steps.some((line) => line.includes('software -> failed (stall)')), steps.join('\n'));
-    const log = appLog();
-    await back();
-    await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
-
-    // 5. The decoder lines and the rest of the app's log never carry the stream address.
-    assert.ok(!log.includes(`:${port}`) && !log.includes('fallback.m3u8'), 'The app log contains the stream URL.');
-    adb('shell', 'input', 'keyevent', '4');
-    await setNativePlayback(false);
-    console.log('PASS a stalled hardware decoder falls back to the software decoder, which the next playback starts '
-        + 'on until it stalls; a stall on every stage fails and offers an external player; no stream URL in the log');
+        // 5. The decoder lines and the rest of the app's log never carry the stream address.
+        assert.ok(!log.includes(`:${port}`) && !log.includes('fallback.m3u8'), 'The app log contains the stream URL.');
+        adb('shell', 'input', 'keyevent', '4');
+        await setNativePlayback(false);
+        console.log('PASS a stalled hardware decoder falls back to the software decoder, which the next playback starts '
+            + 'on until it stalls; a stall on every stage fails and offers an external player; no stream URL in the log');
+    }
 } finally {
     try {
         adb('shell', 'run-as', app, 'rm', '-f', 'files/debug-force-stall', 'shared_prefs/decoder_memory.xml');

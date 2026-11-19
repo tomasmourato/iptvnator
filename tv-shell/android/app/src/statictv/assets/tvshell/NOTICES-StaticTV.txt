@@ -1,0 +1,45 @@
+Licence and notices for StaticTV
+================================
+
+StaticTV is based on IPTVnator (https://github.com/4gray/iptvnator), whose
+code is under the MIT License (Copyright (c) 2019-2026 4gray). The MIT notice
+and the shell's other third-party notices are in THIRD-PARTY-NOTICES.txt, next
+to this file.
+
+StaticTV adds NextLib, which is under the GNU General Public License version 3.
+The StaticTV APK as a whole is therefore distributed under the GNU General
+Public License version 3 (GPL-3.0.txt, next to this file). The source code of
+the repository stays available under its own licences; the GPL applies to the
+combined StaticTV application.
+
+Corresponding source
+--------------------
+
+- StaticTV (this build): https://github.com/tomasmourato/iptvnator
+  (the android-capacitor branch; the statictv product flavor in
+  tv-shell/android/app/fork.gradle and tv-shell/android/app/src/statictv).
+- NextLib 0.19.0 for Media3 1.11.1 (io.github.anilbeesetti:nextlib-media3ext:
+  1.11.1-0.19.0): https://github.com/anilbeesetti/nextlib
+
+Components added by NextLib
+---------------------------
+
+1. NextLib media3ext 1.11.1-0.19.0 - GNU General Public License v3.0
+   Copyright (c) Anil Kumar Beesetti. https://github.com/anilbeesetti/nextlib
+
+2. FFmpeg 9.0.1 (libavcodec, libavformat, libavutil, libswresample,
+   libswscale), as built by NextLib - GNU Lesser General Public License
+   version 3 or later (the libraries report "LGPL version 3 or later").
+   https://ffmpeg.org, source: https://ffmpeg.org/releases/
+
+3. libass 0.17.5 (ISC), FreeType 2.14.1 (FreeType License), fontconfig 2.16.0,
+   expat 2.8.4, FriBidi 1.0.16 (LGPL 2.1), HarfBuzz 14.4.0 and libunibreak 7.0,
+   as built by NextLib. Their licence texts ship in the APK under
+   assets/native-dependencies/, as NextLib provides them.
+
+No warranty
+-----------
+
+StaticTV is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
