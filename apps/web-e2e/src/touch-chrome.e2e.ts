@@ -88,6 +88,36 @@ test.describe('tv-shell touch mode, phone in portrait', () => {
         ).toBeVisible();
     });
 
+    test('@mobile the Settings gear is the last header control on every screen', async ({
+        page,
+    }) => {
+        const lastControl = () =>
+            page
+                .locator('app-workspace-shell-header header')
+                .evaluate((header) =>
+                    Array.from(header.querySelectorAll<HTMLElement>('button, a'))
+                        .filter((control) => control.getClientRects().length)
+                        .at(-1)
+                        ?.getAttribute('data-test-id')
+                );
+
+        const vodUrl = page.url();
+        await page.goto('/workspace/dashboard');
+        await expect(
+            page.locator('[data-test-id="header-touch-search"]')
+        ).toBeVisible();
+        expect(await lastControl()).toBe('header-touch-settings');
+
+        // On a narrow phone Live moves the guide and Add into "More actions";
+        // the gear stays after its trigger.
+        await page.setViewportSize({ width: 320, height: PHONE.height });
+        await page.goto(vodUrl.replace(/\/vod.*$/, '/live'));
+        await expect(
+            page.locator('[data-test-id="header-overflow-menu"]')
+        ).toBeVisible();
+        expect(await lastControl()).toBe('header-touch-settings');
+    });
+
     test('@mobile the header search icon expands the field with the category scope', async ({
         page,
     }) => {

@@ -927,6 +927,27 @@ describe('WorkspaceShellHeaderComponent', () => {
             expect(items[0].getAttribute('aria-checked')).toBe('true');
         });
 
+        it('keeps the touch Settings gear last, after the palette and the menu', () => {
+            fixture.componentRef.setInput('touchChrome', 'portrait');
+            fixture.componentRef.setInput('canUseSearch', false);
+            setOverflowCount(2);
+
+            const global: HTMLElement = fixture.nativeElement.querySelector(
+                '.header-actions--global'
+            );
+            const testIds = Array.from(global.children).map(
+                (child) =>
+                    child.getAttribute('data-test-id') ??
+                    child.className.split(' ')[0]
+            );
+            expect(testIds).toEqual([
+                'header-add-source',
+                'header-command-palette',
+                'header-overflow-menu',
+                'header-touch-settings',
+            ]);
+        });
+
         it('runs an overflowed action from its menu row', () => {
             const lockRequested = jest.fn();
             component.parentalLockToggleRequested.subscribe(lockRequested);

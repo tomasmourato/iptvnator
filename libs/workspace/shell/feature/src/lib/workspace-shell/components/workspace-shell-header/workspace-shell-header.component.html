@@ -287,23 +287,6 @@
                     <mat-icon>add</mat-icon>
                 </button>
             }
-            <!-- Fork-only touch chrome: in portrait the bottom bar replaces
-                 the rail, so Settings is a gear here. It is not an overflow
-                 candidate, so it never moves into "More actions". -->
-            @if (touchChrome() === 'portrait') {
-                <a
-                    mat-icon-button
-                    class="header-shortcut"
-                    routerLink="/workspace/settings"
-                    data-test-id="header-touch-settings"
-                    [class.is-active]="isSettingsRoute()"
-                    [attr.aria-label]="
-                        'WORKSPACE.SHELL.OPEN_SETTINGS' | translate
-                    "
-                >
-                    <mat-icon>settings</mat-icon>
-                </a>
-            }
             @if (showStandaloneCommandTrigger()) {
                 <!-- Without the search field its palette trigger goes too,
                      and on a phone that trigger is the only pointer way
@@ -374,6 +357,24 @@
                 >
                     <mat-icon>more_vert</mat-icon>
                 </button>
+            }
+            <!-- Fork-only touch chrome: in portrait the bottom bar replaces
+                 the rail, so Settings is a gear here, always the last
+                 control. It is not an overflow candidate, so it never moves
+                 into "More actions". -->
+            @if (touchChrome() === 'portrait') {
+                <a
+                    mat-icon-button
+                    class="header-shortcut"
+                    routerLink="/workspace/settings"
+                    data-test-id="header-touch-settings"
+                    [class.is-active]="isSettingsRoute()"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.OPEN_SETTINGS' | translate
+                    "
+                >
+                    <mat-icon>settings</mat-icon>
+                </a>
             }
         </div>
     </div>
