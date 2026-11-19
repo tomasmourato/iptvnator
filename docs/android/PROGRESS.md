@@ -1040,3 +1040,44 @@ F1 onward, as planned: the flavor, U2 (`MainActivity` at 796 lines), U2b,
 F3, U3–U5, D-final. Still open: `android-native-playback.mjs` stops at
 line 671 under `TVSHELL_NO_FFMPEG`; the initial-bytes ratchet (see the
 live-lists entry).
+
+## F1: the StaticTV flavor (2026-11-19)
+
+`8a6df697b` [F] `build(tv-shell)`: the fork's own distribution identity.
+- `app/build.gradle` gets one line, `apply from: 'fork.gradle'`. In
+  `app/fork.gradle`:
+  - the `distribution` dimension;
+  - `tvshell`: upstream's `org.tvshell.iptvnator`, unchanged;
+  - `statictv`: `io.github.tomasmourato.tv`, with ABIs from
+    `-Ptvshell.abis` (default `arm64-v8a`; `x86_64` for the AVDs).
+- The Media3 FFmpeg (AC-3) extension moves from `main` to `tvshell`, and
+  `buildMedia3Ffmpeg` runs before `tvshell` variants only. NextLib (F3)
+  ships FFmpeg libraries under the same file names.
+- `src/statictv` overrides:
+  - the name and every string naming IPTVnator (en/fr);
+  - the icons, the adaptive layers, the TV banner and the startup mark.
+    These are placeholder vectors with the same names and qualifiers, so no
+    IPTVnator artwork ships;
+  - the shortcut's `targetPackage`.
+
+  Its README keeps "based on IPTVnator" and the MIT notice.
+- `tests/statictv-flavor.test.mjs` fails when a rebase adds an IPTVnator
+  string or image that StaticTV doesn't override.
+- The workflow builds `:app:assembleTvshellRelease`
+  (`apk/tvshell/release/app-tvshell-release.apk`). Local commands change the
+  same way: `:app:assembleTvshellDebug`, `:app:assembleStatictvDebug
+  -Ptvshell.abis=x86_64`.
+
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass |
+| `:backend:check` (JDK 17) / `node --test tv-shell/tests` | pass / 29 passed |
+| `tvshell` APKs vs the parent commit (FFmpeg off) | debug and release identical entry for entry, META-INF included, so the TV screens weren't re-run |
+| FFmpeg wiring | a stand-in prebuilt output lands only in `tvshell`; with Linux "build" mode simulated, only `preTvshell*Build` depend on `buildMedia3Ffmpeg` |
+| Phone AVD | StaticTV installs next to IPTVnator, with its own label, icon and startup mark. It loads the app in touch mode, and the launcher shortcut opens "StaticTV settings" |
+
+**Before any public distribution:** the bundled web app still says
+IPTVnator ("Welcome to IPTVnator" on the dashboard, the title, the PWA
+manifest). That needs a decision; the shell side is done.
+
+Not installed on the Pixel 10 yet; that waits for F3.
