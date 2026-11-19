@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StaticTV (fork) placeholder artwork: the startup mark (same name as the IPTVnator
+     file it replaces). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="60"
+    android:viewportHeight="60">
+    <group android:translateX="-24" android:translateY="-19.6">
+        <path android:pathData="M36,38H72A6,6 0,0 1,78,44V68A6,6 0,0 1,72,74H36A6,6 0,0 1,30,68V44A6,6 0,0 1,36,38Z" android:strokeColor="#FFFFFF" android:strokeWidth="4" />
+        <path android:pathData="M45,27L54,37L63,27" android:strokeColor="#FFFFFF" android:strokeWidth="3.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M38,47H58M63,47H70M38,53H45M50,53H70M38,59H54M59,59H66M42,65H70" android:strokeColor="#7CE8D5" android:strokeWidth="3" android:strokeLineCap="round" />
+    </group>
+</vector>

@@ -1,0 +1,48 @@
+// Fork only: the StaticTV distribution. app/build.gradle applies this file with one line, so an
+// upstream rebase touches nothing else there.
+//   tvshell:  upstream's identity (org.tvshell.iptvnator), unchanged.
+//   statictv: StaticTV (io.github.tomasmourato.tv), based on IPTVnator. Its name, icon, banner,
+//             startup mark and launcher shortcut are in src/statictv (see its README.md).
+// -Ptvshell.abis=<comma-separated ABIs> picks StaticTV's native ABIs: arm64-v8a by default (the
+// phone); pass x86_64 for the emulators.
+def statictvAbis = (findProperty('tvshell.abis') ?: 'arm64-v8a').toString()
+    .split(',').collect { it.trim() }.findAll { !it.isEmpty() }
+
+android {
+    flavorDimensions = ['distribution']
+    productFlavors {
+        tvshell {
+            dimension 'distribution'
+        }
+        statictv {
+            dimension 'distribution'
+            applicationId 'io.github.tomasmourato.tv'
+            ndk { abiFilters.addAll(statictvAbis) }
+        }
+    }
+}
+
+// Upstream puts the Media3 FFmpeg (AC-3) extension in the main source set and builds it before
+// every variant. NextLib, StaticTV's FFmpeg, ships libavcodec, libavutil and libswresample under
+// the same file names, so the two builds can't share an APK: the extension moves to tvshell.
+if (media3FfmpegDirs) {
+    android.sourceSets {
+        main {
+            java.srcDirs = java.srcDirs - media3FfmpegDirs.java
+            jniLibs.srcDirs = jniLibs.srcDirs - media3FfmpegDirs.jniLibs
+            assets.srcDirs = assets.srcDirs - media3FfmpegDirs.assets
+        }
+        tvshell {
+            java.srcDir media3FfmpegDirs.java
+            jniLibs.srcDir media3FfmpegDirs.jniLibs
+            assets.srcDir media3FfmpegDirs.assets
+        }
+    }
+}
+def preBuildTask = tasks.named('preBuild').get()
+if (preBuildTask.dependsOn.contains('buildMedia3Ffmpeg')) {
+    preBuildTask.setDependsOn(preBuildTask.dependsOn - 'buildMedia3Ffmpeg')
+    tasks.configureEach { task ->
+        if (task.name ==~ /preTvshell\w*Build/) task.dependsOn 'buildMedia3Ffmpeg'
+    }
+}

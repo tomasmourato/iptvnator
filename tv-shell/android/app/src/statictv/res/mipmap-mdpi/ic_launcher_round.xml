@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StaticTV (fork) placeholder artwork: replaces the IPTVnator ic_launcher_round.png at this density
+     (launchers before Android 8; 8+ use mipmap-anydpi-v26 with the overridden layers). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/statictv_icon_round" />
+</layer-list>

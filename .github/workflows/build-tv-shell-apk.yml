@@ -218,8 +218,9 @@ jobs:
           fi
           # Always a release (non-debuggable) build; without the secrets it is
           # signed with the versioned debug key (see app/build.gradle).
-          ./gradlew --no-daemon :app:assembleRelease
-          APK=app/build/outputs/apk/release/app-release.apk
+          # The upstream flavor; the fork's statictv flavor is built locally (app/fork.gradle).
+          ./gradlew --no-daemon :app:assembleTvshellRelease
+          APK=app/build/outputs/apk/tvshell/release/app-tvshell-release.apk
           test -f "$APK"
           VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)
           OUT="iptvnator-tv-shell-${VERSION}-${HEAD_SHA::7}.apk"

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StaticTV (fork): src/main's launcher shortcut with StaticTV's applicationId as targetPackage.
+     The action and the class keep the code's names (the namespace is unchanged). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shell_settings"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_settings_short"
+        android:shortcutLongLabel="@string/settings_title">
+        <intent
+            android:action="org.tvshell.iptvnator.action.OPEN_SETTINGS"
+            android:targetPackage="io.github.tomasmourato.tv"
+            android:targetClass="org.tvshell.iptvnator.ui.MainActivity" />
+    </shortcut>
+</shortcuts>

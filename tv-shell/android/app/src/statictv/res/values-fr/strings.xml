@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StaticTV (fork): see values/strings.xml. -->
+<resources>
+    <string name="app_name">StaticTV</string>
+    <string name="loading">Chargement de StaticTV…</string>
+    <string name="load_timeout">L\'application web n\'a pas démarré à temps. Le WebView de cet appareil est peut-être trop ancien pour StaticTV (moteur Chrome 94 ou plus récent requis). Le diagnostic est ci-dessous.</string>
+    <string name="webview_bridge_unavailable">Mettez à jour Amazon WebView ou Android System WebView pour activer les commandes sécurisées de StaticTV.</string>
+    <string name="settings_title">Réglages de StaticTV</string>
+    <string name="reset_title">Effacer les données de StaticTV</string>
+</resources>

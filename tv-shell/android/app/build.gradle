@@ -142,3 +142,5 @@ dependencies {
     // capped in TvShellServer before NanoHTTPD parses them.
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }
+
+apply from: 'fork.gradle' // Fork only: the StaticTV product flavor.

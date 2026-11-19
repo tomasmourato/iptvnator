@@ -270,9 +270,12 @@ pnpm nx build web --configuration=pwa
 tv-shell/scripts/bundle-pwa.sh dist/apps/web
 # 3. the APK (JDK 17 + Android SDK 36 + NDK r28c; on Windows, see below)
 sdkmanager "platforms;android-36" "ndk;28.2.13676358"
-cd tv-shell/android && ./gradlew :backend:check :app:assembleRelease
-# → app/build/outputs/apk/release/app-release.apk (signed with the debug key)
+cd tv-shell/android && ./gradlew :backend:check :app:assembleTvshellRelease
+# → app/build/outputs/apk/tvshell/release/app-tvshell-release.apk (signed with the debug key)
 ```
+
+This fork adds a `statictv` product flavor (its own name, app ID and icon) in
+`app/fork.gradle`; see [`app/src/statictv/README.md`](android/app/src/statictv/README.md).
 
 The Android build compiles the [Media3 FFmpeg audio extension](https://github.com/androidx/media/tree/1.11.1/libraries/decoder_ffmpeg)
 for ARM and x86 devices. It dynamically links unmodified [FFmpeg 6.1.6 source](https://ffmpeg.org/releases/ffmpeg-6.1.6.tar.xz)

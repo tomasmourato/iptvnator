@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- StaticTV (fork) overrides every string in src/main that names IPTVnator.
+     tests/statictv-flavor.test.mjs fails when upstream adds one that isn't overridden here. -->
+<resources>
+    <string name="app_name">StaticTV</string>
+    <string name="loading">Loading StaticTV…</string>
+    <string name="load_timeout">The web app did not start in time. The WebView of this device may be too old for StaticTV (Chrome engine 94 or newer is required). The diagnostics are below.</string>
+    <string name="webview_bridge_unavailable">Update Amazon WebView or Android System WebView to enable StaticTV’s secure controls.</string>
+    <string name="settings_title">StaticTV settings</string>
+    <string name="reset_title">Erase StaticTV data</string>
+</resources>
