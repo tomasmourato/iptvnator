@@ -170,8 +170,11 @@ decoder: when it takes input for 6 seconds without showing a new frame, or
 fails with a decoder error, the player opens the stream again on the next
 decoder. That is the platform's software decoder, or the decoder a build adds
 through `VideoDecoderProvider` (for example FFmpeg). VOD keeps its position and
-selected tracks; live restarts. When the last decoder also stalls, playback
-fails and Back offers an external player as usual. The `TvShell` log tag has
+selected tracks; live restarts. The player then remembers that decoder for the
+stream for 30 days, under a hash of its address, and starts there next time; if
+it stalls there, the entry goes and the player starts over on the first
+decoder. **Erase IPTVnator data** clears this memory. When the last decoder
+also stalls, playback fails and Back offers an external player as usual. The `TvShell` log tag has
 one line per decoder change, with the reason, the decoder name and its frame
 counters, never the stream address.
 The native fullscreen screen supports play/pause, VOD

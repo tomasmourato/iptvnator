@@ -23,13 +23,16 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.DecoderChain;
 import org.tvshell.iptvnator.backend.DecoderChain.Stage;
+import org.tvshell.iptvnator.backend.DecoderMemory;
 
 /**
  * Runs the built-in player's video decoder chain ({@link DecoderChain}): builds the current
  * stage's renderers, watches its decoder, and moves to the next stage after a stall, a video
  * decoder error or a video track the stage cannot decode. The host then rebuilds the player on
- * the same stream. Each change is one log line with the stage, the reason, the decoder name and
- * its counters, never the stream URL.
+ * the same stream. A stage after hardware that renders is remembered for the stream
+ * ({@link DecoderMemory}), and the next playback starts on it; when it stalls or fails there, the
+ * entry is dropped and the chain restarts from hardware. Each change is one log line with the
+ * stage, the reason, the decoder name and its counters, never the stream URL.
  */
 @OptIn(markerClass = UnstableApi.class)
 public final class DecoderFallback implements StallWatchdog.Listener {
@@ -48,6 +51,9 @@ public final class DecoderFallback implements StallWatchdog.Listener {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final DebugForcedStall debug;
     private final Stage firstStage;
+    private final DecoderMemory memory;
+    private final String streamKey;
+    private boolean fromMemory;
     private Stage stage;
     private String decoderName = "none";
     private String videoMimeType;
@@ -71,14 +77,21 @@ public final class DecoderFallback implements StallWatchdog.Listener {
         }
     };
 
-    /** @param savedStage the stage of a recreated activity, or null to start on hardware */
-    public DecoderFallback(Context context, Host host, String savedStage) {
+    /** @param savedStage the stage of a recreated activity, or null for the stream's remembered stage or hardware */
+    public DecoderFallback(Context context, Host host, String streamUrl, String savedStage) {
         this.context = context.getApplicationContext();
         this.host = host;
+        memory = new DecoderMemory(new DecoderMemoryStore(this.context));
+        streamKey = DecoderMemory.key(streamUrl);
         Stage saved = Stage.parse(savedStage);
-        stage = saved != null && DecoderChain.contains(saved, provider != null) ? saved : Stage.HARDWARE;
+        Stage remembered = saved == null ? memory.recall(streamKey, System.currentTimeMillis()) : null;
+        Stage initial = saved != null ? saved : remembered;
+        stage = initial != null && DecoderChain.contains(initial, provider != null) ? initial : Stage.HARDWARE;
+        if (remembered != null && stage != remembered) memory.forget(streamKey); // from a build with another chain
+        fromMemory = remembered != null && stage == remembered;
         firstStage = stage;
         debug = DebugForcedStall.read(context);
+        if (fromMemory) log("starting on " + stage.id() + " (remembered)", null);
     }
 
     public String stage() {
@@ -135,11 +148,21 @@ public final class DecoderFallback implements StallWatchdog.Listener {
     @Override
     public void onRendering(DecoderCounters counters) {
         log(stage.id() + " rendering", counters);
+        if (stage != Stage.HARDWARE) memory.remember(streamKey, stage, System.currentTimeMillis());
     }
 
     private boolean advance(String reason) {
-        Stage next = DecoderChain.next(stage, provider != null,
-            candidate -> DecoderStages.available(candidate, videoMimeType, provider));
+        DecoderChain.Availability available = candidate -> DecoderStages.available(candidate, videoMimeType, provider);
+        if (memory.recall(streamKey, System.currentTimeMillis()) == stage) memory.forget(streamKey);
+        Stage next;
+        if (fromMemory) {
+            // The remembered stage no longer works for this stream: start the chain over.
+            fromMemory = false;
+            next = available.has(Stage.HARDWARE) ? Stage.HARDWARE : DecoderChain.next(Stage.HARDWARE, provider != null, available);
+            reason += ", remembered stage dropped";
+        } else {
+            next = DecoderChain.next(stage, provider != null, available);
+        }
         log(stage.id() + " -> " + next.id() + " (" + reason + ")", player == null ? null : player.getVideoDecoderCounters());
         if (next == Stage.FAILED) return false;
         stage = next;

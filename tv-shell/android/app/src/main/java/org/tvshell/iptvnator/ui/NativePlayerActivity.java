@@ -46,13 +46,14 @@ public final class NativePlayerActivity extends Activity implements DecoderFallb
         requestId = getIntent().getStringExtra("requestId");
         checkpoint = new NativeResumeCheckpoint(requestId);
         state = new NativePlaybackState(getIntent(), savedState);
-        decoders = new DecoderFallback(this, this, savedState == null ? null : savedState.getString("decoderStage"));
         String url = getIntent().getStringExtra("url");
         stream = url == null ? null : HttpUrl.parse(url);
         if (stream == null) {
             finish();
             return;
         }
+        decoders = new DecoderFallback(this, this, stream.toString(),
+            savedState == null ? null : savedState.getString("decoderStage"));
         setContentView(R.layout.activity_native_player);
         controls = new NativePlayerControls(this, state);
     }
@@ -243,7 +244,7 @@ public final class NativePlayerActivity extends Activity implements DecoderFallb
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         state.save(outState);
-        outState.putString("decoderStage", decoders.stage());
+        if (decoders != null) outState.putString("decoderStage", decoders.stage());
         super.onSaveInstanceState(outState);
     }
 

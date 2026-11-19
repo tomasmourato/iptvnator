@@ -205,6 +205,11 @@ has no decoder for the track. The next stage is the build's
 the platform software decoders; then playback fails as before. A stage change
 rebuilds the player on the same stream: the activity keeps the VOD position,
 tracks, volume and played time, and a recreated activity keeps the stage.
+A stage after hardware that renders frames is remembered per stream
+(`DecoderMemory`: SHA-256 of the URL, never the URL, in the private
+`decoder_memory` preferences, 30-day expiry, at most 500 entries). The next
+playback of that stream starts on it; a stall or failure there drops the entry
+and restarts the chain from hardware. The shell's Erase data clears it.
 
 ## Two-State Detail Layout (Browse ↔ Watch)
 

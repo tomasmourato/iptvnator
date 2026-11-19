@@ -81,14 +81,20 @@ try {
         window.__nativeResult = event.detail.result;
     }));
 
+    async function play() {
+        adb('logcat', '-c');
+        await page.evaluate((url) => {
+            delete window.__nativeResult;
+            window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, hls: true }]));
+        }, stream);
+        await waitNative();
+    }
+    const memory = () => adb('shell', 'run-as', app, 'cat', 'shared_prefs/decoder_memory.xml');
+    adb('shell', 'run-as', app, 'rm', '-f', 'shared_prefs/decoder_memory.xml');
+
     // 1. The hardware decoder takes input and shows nothing: the software decoder takes over.
     forceStall('first');
-    adb('logcat', '-c');
-    await page.evaluate((url) => {
-        delete window.__nativeResult;
-        window.TvShell.postMessage(JSON.stringify(['playNative', crypto.randomUUID(), { url, hls: true }]));
-    }, stream);
-    await waitNative();
+    await play();
     const requestsBefore = manifestRequests.count;
     await expect.poll(decoderLog, { timeout: 30000 }).toEqual(expect.arrayContaining([
         expect.stringMatching(/native decoder: hardware -> software \(stall\), decoder=\S+, queued=\d+, rendered=0/),
@@ -101,7 +107,28 @@ try {
     assert.equal(played.failed, false, 'The software stage played the stream.');
     assert.equal(played.started, true);
 
-    // 2. Every decoder stalls: failed, and the page offers an external player.
+    // 2. The next playback of that stream starts on the decoder that worked; only a hash is kept.
+    await expect.poll(memory).toMatch(/name="[0-9a-f]{64}">software:\d+</);
+    assert.ok(!memory().includes(`:${port}`) && !memory().includes('fallback'), 'The memory keeps a stream address.');
+    adb('shell', 'run-as', app, 'rm', '-f', 'files/debug-force-stall');
+    await play();
+    await expect.poll(decoderLog, { timeout: 20000 }).toEqual([
+        expect.stringMatching(/native decoder: starting on software \(remembered\)/),
+        expect.stringMatching(/native decoder: software rendering, decoder=c2\.android\.avc\.decoder/),
+    ]);
+    await back();
+
+    // 3. The remembered decoder stalls: the entry goes and the chain starts over on hardware.
+    forceStall('first'); // the first stage is now the remembered software decoder
+    await play();
+    await expect.poll(decoderLog, { timeout: 30000 }).toEqual(expect.arrayContaining([
+        expect.stringMatching(/native decoder: software -> hardware \(stall, remembered stage dropped\)/),
+        expect.stringMatching(/native decoder: hardware rendering, decoder=c2\.goldfish\.h264\.decoder/),
+    ]));
+    await back();
+    await expect.poll(memory).not.toMatch(/[0-9a-f]{64}/);
+
+    // 4. Every decoder stalls: failed, and the page offers an external player.
     forceStall('all');
     adb('logcat', '-c');
     await page.goto(new URL('/', page.url()).href);
@@ -130,15 +157,15 @@ try {
     await back();
     await expect.poll(() => dumpLayout().includes('This stream cannot be played here')).toBe(true);
 
-    // 3. The decoder lines and the rest of the app's log never carry the stream address.
+    // 5. The decoder lines and the rest of the app's log never carry the stream address.
     assert.ok(!log.includes(`:${port}`) && !log.includes('fallback.m3u8'), 'The app log contains the stream URL.');
     adb('shell', 'input', 'keyevent', '4');
     await setNativePlayback(false);
-    console.log('PASS a stalled hardware decoder falls back to the software decoder; a stall on every stage fails '
-        + 'and offers an external player; no stream URL in the log');
+    console.log('PASS a stalled hardware decoder falls back to the software decoder, which the next playback starts '
+        + 'on until it stalls; a stall on every stage fails and offers an external player; no stream URL in the log');
 } finally {
     try {
-        adb('shell', 'run-as', app, 'rm', '-f', 'files/debug-force-stall');
+        adb('shell', 'run-as', app, 'rm', '-f', 'files/debug-force-stall', 'shared_prefs/decoder_memory.xml');
         if (topActivity().includes('.ui.NativePlayerActivity')) adb('shell', 'input', 'keyevent', '4');
         if (port) adb('reverse', '--remove', `tcp:${port}`);
     } finally {

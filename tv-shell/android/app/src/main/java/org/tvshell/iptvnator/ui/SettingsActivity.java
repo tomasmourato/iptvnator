@@ -22,6 +22,7 @@ import org.tvshell.iptvnator.Prefs;
 import org.tvshell.iptvnator.R;
 import org.tvshell.iptvnator.ShellApp;
 import org.tvshell.iptvnator.backend.InterfaceMode;
+import org.tvshell.iptvnator.player.DecoderMemoryStore;
 import org.tvshell.iptvnator.server.TvShellServer;
 
 import java.util.List;
@@ -171,6 +172,7 @@ public class SettingsActivity extends Activity {
                         return;
                     }
                     new NativePlaybackCheckpoints(SettingsActivity.this).clear();
+                    DecoderMemoryStore.clear(SettingsActivity.this);
                     dataCleared = true;
                     Toast.makeText(SettingsActivity.this, R.string.reset_done, Toast.LENGTH_SHORT).show();
                 }
