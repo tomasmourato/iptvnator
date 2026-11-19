@@ -913,3 +913,81 @@ skipped (the user's choice); upstream's build is AC-3-only.
   input queued and no frame rendered, or after a decode error.
 - Next: rebase onto upstream's pilot, then plan the decoder fallback, touch
   mode, the external-offer entry and auto-route on top of it.
+
+## Rebase onto upstream's Media3 pilot (2026-11-18)
+
+`android-capacitor` now sits on `upstream/master` `2186a39db` (it was on
+`d824c5e50`), which brings the Media3 pilot (#2209). The previous branch is
+kept as `backup/android-capacitor-pre-rebase-20261118` (also on `origin`).
+The batch 6 and 7 fixups were folded into their commits.
+
+Each commit is tagged **[U]** (meant for an upstream PR) or **[F]** (fork
+only): the optional FFmpeg step `1e4deb88a` is [U]; the rotation check
+`dea75cb33` is [U] (it goes with touch mode); this entry is [F].
+
+### Conflicts and how they were resolved
+Ten commits stopped the rebase:
+- `MainActivity` (`25f94819c` split, `f210c8ae6` touch mode, `3cba2a302`
+  focus layer, `d8bf84707` launcher shortcut): the pilot's new code moved
+  into the helpers the split created; `ExternalOffer` gained `dismiss()` for
+  the pilot's offer flow.
+  - `onConfigurationChanged`: touch mode still never reloads the page; TV
+    takes the pilot's in-place viewport update.
+- `tv-shell/README.md` (`2e39bbb88`, `c52a7c49a`): both sides kept.
+- Header (`307290cfd`, `04400e524`), against upstream's header #2283:
+  upstream's layout, plus the touch gear and the touch search outside the
+  overflow cluster, so neither is ever hidden in "More actions".
+- The specs (`4e0409080`, `c670b6b84`, and the header specs): merged both
+  sides' cases.
+
+Fixes folded in while resolving:
+- a duplicate `injector` field in the header component;
+- the header component at 431 lines: the touch search moved to
+  `header-touch-search.ts`;
+- `provideRouter` in the header spec.
+
+### UX differences (upstream changes, kept)
+Reviewed against `2026-11-17\after\`:
+- #2283: the dashboard search field became ⚡ (command palette); new header
+  proportions. On Live in portrait, "More actions" holds the guide and Add;
+  kept as decided.
+- #2294: hearts for favorites.
+- #2280, #2293, #2258: the compact inline guide with a timeline.
+- #2295: the Inter font.
+- The hero card's programme line.
+
+Overflow check: no control appears twice; the search and the gear are never
+hidden; the expanded search hides + and ⚙ by design. Captures:
+`C:\Users\mrttm\iptvnator-ux-review\2026-11-18\rebase\`.
+
+### Results
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass |
+| `:backend:check` (JDK 17) / `node --test tv-shell/tests` | 80 / 24 passed |
+| `tv-remote.mjs` / `tv-longlist.mjs` / `tv-touch.mjs` (Chromium) | 134 / 19 / 25 checks passed |
+| TV parity (baseline from the new upstream, FFmpeg off) | identical, 0.000% on every shot |
+| Phone emulator suites | 1 / 1 / 3 / 4 PASS |
+| `android-touch.mjs` phone | fails at step 2, "synthetic playlist did not load": the AVD gives the page no idle time (below); the pre-rebase APK fails the same way |
+| `android-native-playback.mjs` | the rotation step is fixed (`dea75cb33`); it then stops at line 671, as pure upstream does. The TV AVD has no Recents step |
+
+**No idle time on the phone AVD.** `requestIdleCallback` never fires on most
+pages; the page has no JS loop, DOM churn or long tasks, and the pre-rebase
+APK behaves the same. The M3U channel list is the repo's only `@defer` that
+waits for idle alone, so it stays a skeleton.
+
+### Follow-ups
+- `MainActivity` is 796 lines; U2 shrinks it.
+- `android-native-playback.mjs` stops at line 671 under `TVSHELL_NO_FFMPEG`.
+- The M3U list on a device with no idle time (next entry).
+
+### To resume
+- FFmpeg from winget is in `%LOCALAPPDATA%\Microsoft\WinGet\Links`.
+- Build and test without the FFmpeg extension: `-Ptvshell.media3Ffmpeg=off`
+  and `TVSHELL_NO_FFMPEG=1`.
+- Phone app data, before any test that runs `pm clear`:
+  `…\2026-11-18\phone-app-data.tar`, restored with `adb shell am force-stop
+  org.tvshell.iptvnator`, then `adb exec-in run-as org.tvshell.iptvnator
+  tar -xf - < phone-app-data.tar`.
+- Review folders: `C:\Users\mrttm\iptvnator-ux-review\2026-11-17\` (before,
+  after, scripts) and `…\2026-11-18\rebase\`.
