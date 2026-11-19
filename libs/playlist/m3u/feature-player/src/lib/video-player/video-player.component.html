@@ -33,7 +33,7 @@
             <mat-icon>chevron_left</mat-icon>
         </button>
     }
-    @defer {
+    @defer (on idle; when channelListDue()) {
         <app-sidebar
             [channels]="(channels$ | async)!"
             [channelsLoading]="channelsLoading()"

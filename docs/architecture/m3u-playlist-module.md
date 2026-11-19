@@ -723,6 +723,12 @@ channel-list-container/
   after that persisted read. Hydration must not use the persistence-bearing
   `setFavorites` action: doing so reads and rewrites the complete M3U payload
   again just to store favorites that already came from SQLite.
+- The player route's channel sidebar is a `@defer (on idle; when channelListDue())`
+  block in `video-player.component.html`. `channelListDue` turns true after 1 s
+  (`deferred-render-fallback.ts`): the fallback for devices that give the page no idle
+  period (an Android emulator ran 40 s+ without one), where idle alone left the list a
+  skeleton. It is a `when` condition because `on timer` adds Angular's timer trigger
+  to the initial bundle (+1.8 KB). `m3u-deferred-list.e2e.ts` covers it.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
   Its headers and first row share the views' boxes
   (`libs/ui/components/src/lib/styles/_channel-list-layout.scss`), so the list

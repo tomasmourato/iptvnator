@@ -148,6 +148,7 @@ import {
 import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.service';
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
+import { deferredRenderFallback } from './deferred-render-fallback';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 // File-level entry: the @iptvnator/ui/components barrel is in the startup bundle.
 import { LivePhoneTabsComponent } from '@iptvnator/ui/components/live-phone-tabs';
@@ -574,6 +575,8 @@ export class VideoPlayerComponent
             ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
             : M3U_SIDEBAR_STORAGE_KEY
     );
+    /** Renders the deferred channel list on a device with no idle time. */
+    readonly channelListDue = deferredRenderFallback(1000);
     readonly sidebarWidth = signal(M3U_SIDEBAR_DEFAULT_WIDTH);
     readonly sidebarMinWidth = M3U_SIDEBAR_MIN_WIDTH;
     readonly sidebarMaxWidth = M3U_SIDEBAR_MAX_WIDTH;
