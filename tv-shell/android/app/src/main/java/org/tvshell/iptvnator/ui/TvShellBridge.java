@@ -35,16 +35,16 @@ final class TvShellBridge {
             case "playNative":
                 if (args.size() == 3) {
                     String id = stringAt(args, 1);
-                    if (id != null && id.matches("[a-f0-9-]{36}")) activity.playNative(id, args.get(2));
+                    if (id != null && id.matches("[a-f0-9-]{36}")) activity.nativePlayback().play(id, args.get(2));
                 }
                 break;
             case "acknowledgeNativePlaybackCheckpoint":
                 String checkpointId = stringAt(args, 1);
-                if (checkpointId != null) activity.acknowledgeNativePlaybackCheckpoint(checkpointId);
+                if (checkpointId != null) activity.nativePlayback().acknowledge(checkpointId);
                 break;
             case "stopNative":
                 String playbackId = stringAt(args, 1);
-                if (playbackId != null) activity.stopNative(playbackId);
+                if (playbackId != null) activity.nativePlayback().stop(playbackId);
                 break;
             case "openExternal":
             case "onUrlCopied":
@@ -52,8 +52,8 @@ final class TvShellBridge {
                 String url = stringAt(args, 1);
                 String title = stringAt(args, 2);
                 if (url == null || title == null) return;
-                if (command.equals("openExternal")) activity.openExternal(url, title);
-                else activity.offerExternal(url, title, command.equals("onPlaybackError"));
+                if (command.equals("openExternal")) activity.externalOffer().open(url, title);
+                else activity.externalOffer().offer(url, title, command.equals("onPlaybackError"));
                 break;
             case "setKeepScreenOn":
                 if (args.size() > 1 && args.get(1) instanceof Boolean) {
@@ -71,7 +71,7 @@ final class TvShellBridge {
                 if (text != null) activity.toast(text);
                 break;
             case "showKeyboard":
-                activity.showKeyboard();
+                activity.keys().showKeyboard();
                 break;
             case "openSettings":
                 activity.openSettings();

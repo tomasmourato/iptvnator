@@ -39,7 +39,7 @@ final class ExternalOffer {
             .setPositiveButton(R.string.external_prompt_open, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    activity.openExternal(url, title);
+                    open(url, title);
                 }
             })
             .setNegativeButton(R.string.external_prompt_cancel, null)
@@ -51,6 +51,15 @@ final class ExternalOffer {
                 }
             })
             .show();
+    }
+
+    /** Opens a stream in the chosen external player, without asking. */
+    void open(String url, String title) {
+        if (url == null || url.trim().isEmpty()) {
+            activity.toast(activity.getString(R.string.no_stream_to_open));
+            return;
+        }
+        ExternalPlayer.open(activity, url.trim(), title, prefs.externalPlayerPackage());
     }
 
     /** Native playback is taking over the screen: close a pending offer. */

@@ -1,8 +1,10 @@
 package org.tvshell.iptvnator.ui;
 
+import android.content.Context;
 import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebView;
 
 import org.tvshell.iptvnator.R;
@@ -155,6 +157,22 @@ final class KeyRouter {
                 }
             });
         return true;
+    }
+
+    void showKeyboard() {
+        WebView webView = activity.webView();
+        if (webView == null || activity.isFinishing()) return;
+        // requestFocus(FOCUS_DOWN) on a WebView that already has focus moves the page focus to its
+        // first element, away from the field that asked for the keyboard.
+        View customView = activity.fullscreen().view();
+        View inputView = customView != null ? customView : webView;
+        if (!inputView.hasFocus()) inputView.requestFocus();
+        InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm == null) return;
+        // The field may have become editable after the WebView last described it to the keyboard
+        // (tv.js holds a D-pad-focused field read-only): describe it again before showing.
+        imm.restartInput(inputView);
+        imm.showSoftInput(inputView, InputMethodManager.SHOW_IMPLICIT);
     }
 
     private void media(String action) {
