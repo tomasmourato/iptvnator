@@ -446,6 +446,11 @@ ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-file-input.mjs emulator-55
 # clears the app's data
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-loopback-secret.mjs emulator-5554
 
+# TV screen parity on an Android TV emulator: 8 screens and a state fingerprint each
+# (clears the app's data; keep run-dev.sh running), then a comparison of two builds
+ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-tv-screens.mjs emulator-5554 --out before
+node tv-shell/tests/android-tv-screens.mjs --compare before after
+
 # native bridge isolation and main-frame commands
 ANDROID_HOME=/path/to/sdk node tv-shell/tests/android-bridge.mjs emulator-5554
 
