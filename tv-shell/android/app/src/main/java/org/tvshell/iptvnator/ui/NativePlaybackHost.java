@@ -90,7 +90,7 @@ final class NativePlaybackHost {
     void stop(String id) {
         if (!id.equals(playbackId)) return;
         content = null;
-        NativePlayerActivity.revokeCheckpoint(id);
+        NativeResumeCheckpoint.revoke(id);
         activity.finishActivity(REQUEST_CODE);
     }
 
@@ -99,7 +99,7 @@ final class NativePlaybackHost {
         Bundle requestContent = content;
         playbackId = null;
         content = null;
-        Intent fallback = id == null ? null : NativePlayerActivity.takeCheckpoint(id);
+        Intent fallback = id == null ? null : NativeResumeCheckpoint.take(id);
         Intent result = resultCode == Activity.RESULT_OK && data != null ? data : fallback;
         if (result == fallback) checkpoints.saveResult(requestContent, id, result);
         if (id != null && documentCurrent) {
