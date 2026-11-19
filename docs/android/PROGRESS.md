@@ -1081,3 +1081,64 @@ IPTVnator ("Welcome to IPTVnator" on the dashboard, the title, the PWA
 manifest). That needs a decision; the shell side is done.
 
 Not installed on the Pixel 10 yet; that waits for F3.
+
+## U2 and U2b: decoder fallback and per-stream memory (2026-11-19)
+
+Commits, tagged [U] (for an upstream PR) or [F] (fork only):
+- `bf0b7164b` [U] `refactor(tv-shell)`: `MainActivity` 796 → 296 lines, no
+  behaviour change. New `ShellPage` (the WebView, loading, bridge, loaded
+  layout and mode), `PageStatus` (splash, error panel, ready watchdog, load
+  retry), `ShellPageClient` and `ShellChromeClient` (the former anonymous
+  clients), `NativePlaybackHost` (built-in player requests, results,
+  checkpoints) and `WebViewSetup`.
+- `0de1ff83f` [U] `refactor(tv-shell)`: `NativePlayerActivity` 495 → 244
+  lines, no behaviour change. New `player.NativePlayerFactory`,
+  `NativeMediaSession`, `NativePlaybackState`, `NativePlayerControls` and
+  `NativeResumeCheckpoint`.
+- `af0380f14` [U] `feat(tv-shell)`: the decoder fallback.
+  - Backend rules, JVM-tested: `VideoOutputStall` (≥ 30 inputs queued and
+    no new frame over 6 s of wanted playback; a pause, seek or new decoder
+    restarts the window) and `DecoderChain` (hardware → FFmpeg with a
+    provider, else hardware → platform software → failed; stages without a
+    decoder for the track are skipped).
+  - `player` package: `VideoDecoderProvider` and its `ServiceLoader` (none
+    upstream), `DecoderStages`, `StallWatchdog`, `DecoderFallback`.
+  - The activity rebuilds the player on the same stream. VOD keeps its
+    position, tracks, volume and played time; live restarts; the stage
+    survives recreation. One `TvShell` line per change, never the URL.
+  - Debug-only hook `files/debug-force-stall` (`all`: every stage), used
+    by the new `tests/android-native-fallback.mjs`.
+  - Note `.changes/tv-shell-decoder-fallback.md`.
+- `61e853404` [U] `feat(tv-shell)`: per-stream memory. `DecoderMemory`
+  (SHA-256 key, 30-day expiry, 500 entries) in the `decoder_memory`
+  preferences. The next playback starts on the remembered stage; a stall
+  there drops the entry and restarts from hardware. Erase data clears it.
+  The U2 note mentions it.
+
+Sizes now: `MainActivity` 296, `NativePlayerActivity` 280, `DecoderFallback`
+189 lines. `MainActivity` has little room left for U3–U5.
+
+### Results
+| Check | Result |
+|---|---|
+| lint / typecheck:web / test:frontend / build:frontend:pwa | pass (`apps/` and `libs/` untouched) |
+| `:backend:check` (JDK 17) / `node --test` (7 files) | 100 passed (20 new) / 29 passed |
+| Each commit compiled alone (worktree) | `bf0b7164b`, `0de1ff83f`, `af0380f14`: `:app:compileTvshellDebugJavaWithJavac` and `:backend:compileTestJava` pass |
+| Phone AVD, refactors only | bridge, protocol discovery, file input (3), background media (4), `android-touch` 7/7 pass; `android-native-playback` stops at line 671 as before |
+| Phone AVD, U2/U2b | `android-native-fallback` PASS: `c2.goldfish.h264` forced to stall (1,249 queued, 0 rendered) → `c2.android.avc` renders; next playback "starting on software (remembered)"; a stall there → "software -> hardware (stall, remembered stage dropped)"; all stages stalled → failed → "This stream cannot be played here"; no stream address in the app's log or the prefs |
+| Phone AVD, U2 | `android-native-playback` up to line 671; Theora still fails ("hardware -> failed (no hardware decoder for video/x-unknown)") |
+| TV AVD (API 34), final APK | bridge, protocol discovery, `android-native-fallback` PASS; `android-native-playback` passes up to the Recents step (line 311: no Recents on the TV AVD, known); a TV-mode check shows the 1280 px pinned viewport, one D-pad focus ring and the settings shortcut |
+| Erase IPTVnator data | emptied a seeded `decoder_memory.xml` (by hand) |
+| release notes | valid (111) |
+
+Not run: the 8 TV screens (the capture script was a scratch tool and is gone;
+the refactors move code without changing it, and the TV suites above pass).
+README.fr.md has no built-in player section, so only README.md documents the
+fallback.
+
+The phone AVD's app data was backed up to `…\2026-11-19\phone-app-data-u2.tar`
+before `android-touch` and restored afterwards (357 entries).
+
+### Next
+F3 (NextLib in StaticTV as the `VideoDecoderProvider`), then the Pixel 10
+on the open-GOP channel; U3–U5; D-final. Not installed on the phone yet.
